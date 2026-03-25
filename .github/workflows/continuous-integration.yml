@@ -6,7 +6,7 @@ name: Continuous Integration
 on:
   push:
     branches:
-      - DISABLED
+      - master
 
 jobs:
   linux:
@@ -36,4 +36,6 @@ jobs:
       - name: Build (web)
         run: npm run build:web
       - name: Test
+        env:
+          DISPLAY: ':99'
         run: npm run test
