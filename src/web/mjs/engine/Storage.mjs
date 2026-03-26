@@ -325,7 +325,7 @@ export default class Storage {
             .then(data => {
                 let name = this.path.join(this.temp, this.path.basename(file));
                 // attach timestamp to force reload of already existing, but overwritten temp files
-                let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
+                let page = encodeURI('hakuneko-local://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
                 return new Promise((resolve, reject) => {
                     this.fs.writeFile(name, data, error => {
                         if (error) {
@@ -409,10 +409,11 @@ export default class Storage {
     }
 
     /**
-     *
+     * HAKU-0004: Generate hakuneko-local:// URLs for displaying downloaded content.
+     * Uses custom protocol instead of file:// so webSecurity: true doesn't block cross-origin loads.
      */
     _makeValidFileURL(directory, file) {
-        return encodeURI('file://' + this.path.join(directory, file).replace(/\\/g, '/'))
+        return encodeURI('hakuneko-local://' + this.path.join(directory, file).replace(/\\/g, '/'))
             // some special cases are not covered with encodeURI and needs to be replaced manually
             .replace(this.fileURISubstitutions.rgx, m => this.fileURISubstitutions.map[m]);
     }
