@@ -1,17 +1,18 @@
 export default class InterProcessCommunication {
 
     constructor() {
-        this._ipc = require('electron').ipcRenderer;
+        // Use the preload-exposed IPC bridge instead of require('electron').ipcRenderer
+        this._ipc = window.hakunekoAPI.ipc;
     }
 
     listen(channel, handler) {
         this._ipc.on(channel, async (event, responseChannelID, payload) => {
             try {
                 let data = await handler(payload);
-                event.sender.send(responseChannelID, data);
+                this._ipc.send(responseChannelID, data);
             } catch(error) {
                 console.error(error);
-                event.sender.send(responseChannelID, undefined);
+                this._ipc.send(responseChannelID, undefined);
             }
         });
     }

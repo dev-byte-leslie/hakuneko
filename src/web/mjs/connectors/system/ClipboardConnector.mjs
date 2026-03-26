@@ -15,7 +15,7 @@ export default class ClipboardConnector {
         this.tags = [];
         this.url = undefined;
 
-        this.clipboard = require('electron').clipboard;
+        this.clipboard = window.hakunekoAPI.clipboard;
         this.mangaCache = [];
     }
 
