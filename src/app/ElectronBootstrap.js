@@ -28,6 +28,14 @@ module.exports = class ElectronBootstrap {
                     standard: true,
                     supportFetchAPI: true
                 }
+            },
+            {
+                scheme: 'hakuneko-local',
+                privileges: {
+                    standard: true,
+                    secure: true,
+                    supportFetchAPI: true
+                }
             }
         ];
         this._directoryMap = {
@@ -65,6 +73,7 @@ module.exports = class ElectronBootstrap {
                 this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
                 this._registerCacheProtocol();
                 this._registerConnectorProtocol();
+                this._registerLocalFileProtocol();
                 this._createWindow();
                 resolve();
             });
@@ -107,6 +116,40 @@ module.exports = class ElectronBootstrap {
                 });
             } catch(error) {
                 callback(error);
+            }
+        });
+    }
+
+    /**
+     * HAKU-0004: Serve downloaded content via hakuneko-local:// protocol.
+     * Replaces raw file:// access so webSecurity can be enabled.
+     * Validates requested paths are absolute and resolved to prevent traversal.
+     *
+     * TODO: When nodeIntegration is flipped to false, add an IPC-based allowlist
+     * so only the download directory + app directories are served.
+     */
+    _registerLocalFileProtocol() {
+        electron.protocol.registerFileProtocol('hakuneko-local', (request, callback) => {
+            try {
+                let url = new URL(request.url);
+                let filePath = decodeURIComponent(url.pathname);
+                // On Windows, strip leading slash from /C:/... paths
+                if (process.platform === 'win32' && filePath.startsWith('/') && /^\/[a-zA-Z]:/.test(filePath)) {
+                    filePath = filePath.slice(1);
+                }
+                filePath = path.resolve(filePath);
+
+                // Block relative path components that survived decoding
+                if (filePath.includes('..')) {
+                    this._logger.warn(`[hakuneko-local] Blocked path traversal attempt: ${filePath}`);
+                    callback({ error: -10 }); // net::ERR_ACCESS_DENIED
+                    return;
+                }
+
+                callback({ path: filePath });
+            } catch (error) {
+                this._logger.warn(`[hakuneko-local] Error serving file: ${error.message}`);
+                callback({ error: -2 }); // net::ERR_FAILED
             }
         });
     }
@@ -270,8 +313,9 @@ module.exports = class ElectronBootstrap {
             backgroundColor: '#f8f8f8',
             webPreferences: {
                 experimentalFeatures: true,
-                nodeIntegration: true,
-                webSecurity: false, // required to open local images in browser
+                nodeIntegration: true, // TODO(HAKU-0004): flip to false after migrating require('fs'/'path'/'os') in Storage.mjs, Settings.mjs, DiscordPresence.mjs to IPC handlers
+                contextIsolation: true,
+                webSecurity: true,
                 preload: path.join(__dirname, 'preload.js')
             },
             frame: false
