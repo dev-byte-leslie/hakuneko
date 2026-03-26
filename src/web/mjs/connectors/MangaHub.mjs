@@ -1,7 +1,6 @@
 import Connector from '../engine/Connector.mjs';
 import Manga from '../engine/Manga.mjs';
 import HeaderGenerator from '../engine/HeaderGenerator.mjs';
-const { remote } = require('electron');
 
 export default class MangaHub extends Connector {
 
@@ -122,11 +121,11 @@ export default class MangaHub extends Connector {
             path: '/',
             expirationDate: now / 1000 + 3 * 31 * 24 * 60 * 60
         };
-        await remote.session.defaultSession.cookies.set(recently);
+        await window.hakunekoAPI.session.cookies.set(recently);
     }
 
     async _getCookieValue(name) {
-        let cookie = await remote.session.defaultSession.cookies.get({
+        let cookie = await window.hakunekoAPI.session.cookies.get({
             url: this.url,
             name: name,
             path: '/'
@@ -157,7 +156,7 @@ export default class MangaHub extends Connector {
 
         const oldMhubAccess = await this._getCookieValue('mhub_access');
 
-        await remote.session.defaultSession.cookies.remove(this.url, 'mhub_access');
+        await window.hakunekoAPI.session.cookies.remove(this.url, 'mhub_access');
         await fetch(request);
 
         const mhubAccess = await this._getCookieValue('mhub_access');

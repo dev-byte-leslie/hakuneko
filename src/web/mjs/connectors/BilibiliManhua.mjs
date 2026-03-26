@@ -122,8 +122,7 @@ export default class BilibiliManhua extends Connector {
         try {
 
             const now = Math.floor(Date.now() / 1000);
-            let cooki = require('electron');
-            cooki = await cooki.remote.session.defaultSession.cookies.get({ url: this.url, name : "access_token" });
+            let cooki = await window.hakunekoAPI.session.cookies.get({ url: this.url, name : "access_token" });
 
             //if there is no cookie user is disconnected, force cleanup
             if (cooki.length == 0) throw new Error('User is not connected.');
