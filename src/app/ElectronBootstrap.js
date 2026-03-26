@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs-extra');
 const electron = require('electron');
+const { exec } = require('child_process');
 const { ConsoleLogger } = require('@logtrine/logtrine');
 const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
 const trayTooltipMinimize = 'HakuNeko\nClick to hide window';
@@ -27,6 +28,14 @@ module.exports = class ElectronBootstrap {
                     standard: true,
                     supportFetchAPI: true
                 }
+            },
+            {
+                scheme: 'hakuneko-local',
+                privileges: {
+                    standard: true,
+                    secure: true,
+                    supportFetchAPI: true
+                }
             }
         ];
         this._directoryMap = {
@@ -37,6 +46,7 @@ module.exports = class ElectronBootstrap {
         this._minimizeToTray = false; // only supported when tray is shown
         this._showTray = false;
         this._tray;
+        this._certBypassDomains = new Set();
     }
 
     /**
@@ -63,6 +73,7 @@ module.exports = class ElectronBootstrap {
                 this._appIcon = electron.nativeImage.createFromPath(path.join(this._configuration.applicationCacheDirectory, 'img', 'tray', process.platform === 'win32' ? 'logo.ico' : 'logo.png'));
                 this._registerCacheProtocol();
                 this._registerConnectorProtocol();
+                this._registerLocalFileProtocol();
                 this._createWindow();
                 resolve();
             });
@@ -109,6 +120,40 @@ module.exports = class ElectronBootstrap {
         });
     }
 
+    /**
+     * HAKU-0004: Serve downloaded content via hakuneko-local:// protocol.
+     * Replaces raw file:// access so webSecurity can be enabled.
+     * Validates requested paths are absolute and resolved to prevent traversal.
+     *
+     * TODO: When nodeIntegration is flipped to false, add an IPC-based allowlist
+     * so only the download directory + app directories are served.
+     */
+    _registerLocalFileProtocol() {
+        electron.protocol.registerFileProtocol('hakuneko-local', (request, callback) => {
+            try {
+                let url = new URL(request.url);
+                let filePath = decodeURIComponent(url.pathname);
+                // On Windows, strip leading slash from /C:/... paths
+                if (process.platform === 'win32' && filePath.startsWith('/') && /^\/[a-zA-Z]:/.test(filePath)) {
+                    filePath = filePath.slice(1);
+                }
+                filePath = path.resolve(filePath);
+
+                // Block relative path components that survived decoding
+                if (filePath.includes('..')) {
+                    this._logger.warn(`[hakuneko-local] Blocked path traversal attempt: ${filePath}`);
+                    callback({ error: -10 }); // net::ERR_ACCESS_DENIED
+                    return;
+                }
+
+                callback({ path: filePath });
+            } catch (error) {
+                this._logger.warn(`[hakuneko-local] Error serving file: ${error.message}`);
+                callback({ error: -2 }); // net::ERR_FAILED
+            }
+        });
+    }
+
     _registerConnectorProtocol() {
         electron.protocol.registerBufferProtocol(this._configuration.connectorProtocol, async (request, callback) => {
             try {
@@ -120,11 +165,22 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
-     * Ignore any certificate errors, such as self-signed, expiration, ...
+     * Handle certificate errors: only bypass for declared connector domains.
      */
     _certificateErrorHandler(event, webContents, url, error, certificate, callback) {
         event.preventDefault();
-        callback(true);
+        try {
+            const hostname = new URL(url).hostname;
+            if (this._certBypassDomains.has(hostname)) {
+                this._logger.warn(`[CertBypass] Accepting cert error for declared domain: ${hostname} (${error})`);
+                callback(true);
+                return;
+            }
+        } catch (e) {
+            // malformed URL — fall through to reject
+        }
+        this._logger.warn(`[CertReject] Rejecting cert error for: ${url} (${error})`);
+        callback(false);
     }
 
     /**
@@ -257,8 +313,10 @@ module.exports = class ElectronBootstrap {
             backgroundColor: '#f8f8f8',
             webPreferences: {
                 experimentalFeatures: true,
-                nodeIntegration: true,
-                webSecurity: false // required to open local images in browser
+                nodeIntegration: true, // TODO(HAKU-0004): flip to false after migrating require('fs'/'path'/'os') in Storage.mjs, Settings.mjs, DiscordPresence.mjs to IPC handlers
+                contextIsolation: true,
+                webSecurity: true,
+                preload: path.join(__dirname, 'preload.js')
             },
             frame: false
         });
@@ -274,6 +332,7 @@ module.exports = class ElectronBootstrap {
         this._window.on('maximize', this._mainWindowRestoreHandler.bind(this));
         this._window.on('minimize', this._mainWindowMinimizeHandler.bind(this));
         electron.ipcMain.on('quit', this._mainWindowQuitHandler.bind(this));
+        this._registerIPCHandlers();
     }
 
     /**
@@ -406,6 +465,393 @@ module.exports = class ElectronBootstrap {
                     // statusLine
                 });
             }
+        });
+    }
+
+    /**
+     * HAKU-0005: Register IPC handlers to replace electron.remote usage in renderer.
+     */
+    _registerIPCHandlers() {
+        const { ipcMain, dialog, shell, app, session } = electron;
+
+        // Certificate bypass domains (HAKU-0006)
+        ipcMain.handle('hakuneko:cert:registerBypassDomains', (event, domains) => {
+            if (Array.isArray(domains)) {
+                for (const domain of domains) {
+                    if (typeof domain === 'string') {
+                        this._certBypassDomains.add(domain);
+                    }
+                }
+            }
+        });
+
+        // Dialog
+        ipcMain.handle('hakuneko:dialog:showMessageBox', (event, options) => {
+            return dialog.showMessageBox(this._window, options);
+        });
+        ipcMain.handle('hakuneko:dialog:showOpenDialog', (event, options) => {
+            return dialog.showOpenDialog(this._window, options);
+        });
+
+        // Window controls
+        ipcMain.handle('hakuneko:window:minimize', () => {
+            if (this._window) this._window.minimize();
+        });
+        ipcMain.handle('hakuneko:window:maximize', () => {
+            if (this._window) this._window.maximize();
+        });
+        ipcMain.handle('hakuneko:window:unmaximize', () => {
+            if (this._window) this._window.unmaximize();
+        });
+        ipcMain.handle('hakuneko:window:isMaximized', () => {
+            return this._window ? this._window.isMaximized() : false;
+        });
+        ipcMain.handle('hakuneko:window:close', () => {
+            if (this._window) this._window.close();
+        });
+
+        // App paths
+        ipcMain.handle('hakuneko:app:getPath', (event, name) => {
+            return app.getPath(name);
+        });
+        ipcMain.on('hakuneko:app:getPathSync', (event, name) => {
+            try {
+                event.returnValue = app.getPath(name);
+            } catch (e) {
+                event.returnValue = null;
+            }
+        });
+
+        // Shell
+        ipcMain.handle('hakuneko:shell:showItemInFolder', (event, fullPath) => {
+            shell.showItemInFolder(fullPath);
+        });
+        ipcMain.handle('hakuneko:shell:openExternal', (event, url) => {
+            return shell.openExternal(url);
+        });
+        ipcMain.handle('hakuneko:shell:openPath', (event, filePath) => {
+            return shell.openPath(filePath);
+        });
+
+        // Child process exec
+        ipcMain.handle('hakuneko:exec', (event, command, options) => {
+            return new Promise((resolve, reject) => {
+                exec(command, options, (error, stdout, stderr) => {
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve({ stdout, stderr });
+                    }
+                });
+            });
+        });
+
+        // Session cookies
+        ipcMain.handle('hakuneko:session:cookies:get', (event, filter) => {
+            return session.defaultSession.cookies.get(filter);
+        });
+        ipcMain.handle('hakuneko:session:cookies:set', (event, details) => {
+            return session.defaultSession.cookies.set(details);
+        });
+        ipcMain.handle('hakuneko:session:cookies:remove', (event, url, name) => {
+            return session.defaultSession.cookies.remove(url, name);
+        });
+
+        // Session proxy
+        ipcMain.handle('hakuneko:session:setProxy', (event, config) => {
+            return new Promise(resolve => {
+                session.defaultSession.setProxy(config, resolve);
+            });
+        });
+
+        // Browser fetch operations (replaces electron.remote.BrowserWindow usage in Request.mjs)
+        ipcMain.handle('hakuneko:browser:fetchUI', (event, url, injectionScript, timeout, images, requestOptions, blacklistPatterns) => {
+            return this._browserFetchUI(url, injectionScript, timeout, images, requestOptions, blacklistPatterns);
+        });
+        ipcMain.handle('hakuneko:browser:fetchBrowser', (event, url, preloadScript, runtimeScript, preferences, timeout, requestOptions, blacklistPatterns) => {
+            return this._browserFetchBrowser(url, preloadScript, runtimeScript, preferences, timeout, requestOptions, blacklistPatterns);
+        });
+        ipcMain.handle('hakuneko:browser:fetchJapscan', (event, url, preloadScript, runtimeScript, preferences, timeout, requestOptions) => {
+            return this._browserFetchJapscan(url, preloadScript, runtimeScript, preferences, timeout, requestOptions);
+        });
+    }
+
+    /**
+     * DOM preparation script injected on dom-ready for scraping windows.
+     */
+    get _scrapeDomPreparationScript() {
+        return `
+            {
+                let images = [...document.querySelectorAll( 'img[onerror]' )];
+                for( let image of images ) {
+                    image.removeAttribute( 'onerror' );
+                    image.onerror = undefined;
+                }
+            }
+        `;
+    }
+
+    /**
+     * Scraping redirection detection script.
+     */
+    get _scrapeCheckScript() {
+        return `
+            new Promise(async (resolve, reject) => {
+                function handleError(message) { reject(new Error(message)); }
+                function handleNoRedirect() { resolve(undefined); }
+                function handleAutomaticRedirect() { resolve('automatic'); }
+                function handleUserInteractionRequired() { resolve('interactive'); }
+
+                if(document.querySelector('meta[http-equiv="refresh"][content*="="]')) {
+                    return handleAutomaticRedirect();
+                }
+                if(document.querySelector('form#formVerify[action*="/Special/AreYouHuman"]')) {
+                    return handleUserInteractionRequired();
+                }
+                let cfCode = document.querySelector('.cf-error-code');
+                if(cfCode) {
+                    return handleError('CloudFlare Error ' + cfCode.innerText);
+                }
+                if(document.querySelector('form#challenge-form[action*="_jschl_"]')) {
+                    return handleAutomaticRedirect();
+                }
+                if(document.querySelector('form#challenge-form[action*="_captcha_"]')) {
+                    return handleUserInteractionRequired();
+                }
+                if(document.querySelector('title') && document.querySelector('title').text == 'DDOS-GUARD') {
+                    await new Promise(resolve => setTimeout(resolve, 7000));
+                    return document.querySelector('div#h-captcha') ? handleUserInteractionRequired() : handleAutomaticRedirect();
+                }
+                if(document.querySelector('title') && document.querySelector('title').text == 'WAF' && document.documentElement.innerHTML.indexOf('/waf-js-run') != -1) {
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    return handleAutomaticRedirect();
+                }
+                if(typeof CloudTest == 'function') {
+                    return handleUserInteractionRequired();
+                }
+                handleNoRedirect();
+            });
+        `;
+    }
+
+    async _checkScrapeRedirection(win) {
+        let scrapeRedirect = await win.webContents.executeJavaScript(this._scrapeCheckScript);
+        if (scrapeRedirect === 'automatic') {
+            return true;
+        }
+        if (scrapeRedirect === 'interactive') {
+            win.setSize(1280, 720);
+            win.center();
+            win.show();
+            win.focus();
+            return true;
+        }
+        return false;
+    }
+
+    _scrapeCleanup(browserWindow, abortAction) {
+        if (abortAction) {
+            clearTimeout(abortAction);
+        }
+        abortAction = null;
+        if (browserWindow) {
+            if (browserWindow.webContents.debugger.isAttached()) {
+                browserWindow.webContents.debugger.detach();
+            }
+            browserWindow.webContents.session.webRequest.onBeforeRequest(null);
+            browserWindow.close();
+        }
+        browserWindow = null;
+    }
+
+    async _browserFetchUI(url, injectionScript, timeout, images, requestOptions, blacklistPatterns) {
+        timeout = timeout || 60000;
+        return new Promise((resolve, reject) => {
+            let win = new electron.BrowserWindow({
+                show: false,
+                webPreferences: {
+                    nodeIntegration: false,
+                    webSecurity: false,
+                    images: images || false
+                }
+            });
+
+            if (blacklistPatterns && blacklistPatterns.length > 0) {
+                win.webContents.session.webRequest.onBeforeRequest({ urls: blacklistPatterns }, (details, callback) => {
+                    callback({ cancel: true });
+                });
+            }
+
+            let preventCallback = false;
+            let abortAction = setTimeout(() => {
+                this._scrapeCleanup(win, abortAction);
+                if (!preventCallback) {
+                    reject(new Error(`Failed to load "${url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
+                }
+            }, timeout);
+
+            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._scrapeDomPreparationScript));
+
+            win.webContents.on('did-finish-load', async () => {
+                try {
+                    if (await this._checkScrapeRedirection(win)) {
+                        return;
+                    }
+                    let jsResult = await win.webContents.executeJavaScript(injectionScript);
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    resolve(jsResult);
+                } catch (error) {
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    reject(error);
+                }
+            });
+
+            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
+                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === url)) {
+                    this._scrapeCleanup(win, abortAction);
+                    reject(new Error(errMessage + ' ' + uri));
+                }
+            });
+
+            win.loadURL(url, requestOptions);
+        });
+    }
+
+    async _browserFetchBrowser(url, preloadScript, runtimeScript, preferences, timeout, requestOptions, blacklistPatterns) {
+        timeout = timeout || 60000;
+        preferences = preferences || {};
+        let preloadScriptFile = undefined;
+        if (preloadScript) {
+            // Save preload script to temp file
+            let tempDir = require('os').tmpdir();
+            let tempFile = path.join(tempDir, 'hakuneko', Math.random().toString(36));
+            await fs.ensureDir(path.dirname(tempFile));
+            await fs.writeFile(tempFile, preloadScript);
+            preloadScriptFile = tempFile;
+        }
+        let win = new electron.BrowserWindow({
+            show: false,
+            webPreferences: {
+                preload: preloadScriptFile,
+                nodeIntegration: preferences.nodeIntegration || false,
+                webSecurity: preferences.webSecurity || false,
+                images: preferences.images || false
+            }
+        });
+
+        if (blacklistPatterns && blacklistPatterns.length > 0) {
+            win.webContents.session.webRequest.onBeforeRequest({ urls: blacklistPatterns }, (_, callback) => callback({ cancel: true }));
+        }
+
+        return new Promise((resolve, reject) => {
+            let preventCallback = false;
+            let abortAction = setTimeout(() => {
+                this._scrapeCleanup(win, abortAction);
+                if (!preventCallback) {
+                    reject(new Error(`Failed to load "${url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
+                }
+            }, timeout);
+
+            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._scrapeDomPreparationScript));
+
+            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
+                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === url)) {
+                    this._scrapeCleanup(win, abortAction);
+                    reject(new Error(errMessage + ' ' + uri));
+                }
+            });
+
+            win.webContents.on('did-finish-load', async () => {
+                try {
+                    if (await this._checkScrapeRedirection(win)) {
+                        return;
+                    }
+                    let jsResult = await win.webContents.executeJavaScript(runtimeScript);
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    resolve(jsResult);
+                } catch (error) {
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    reject(error);
+                }
+            });
+
+            win.loadURL(url, requestOptions);
+        });
+    }
+
+    async _browserFetchJapscan(url, preloadScript, runtimeScript, preferences, timeout, requestOptions) {
+        timeout = timeout || 60000;
+        preferences = preferences || {};
+        let preloadScriptFile = undefined;
+        if (preloadScript) {
+            let tempDir = require('os').tmpdir();
+            let tempFile = path.join(tempDir, 'hakuneko', Math.random().toString(36));
+            await fs.ensureDir(path.dirname(tempFile));
+            await fs.writeFile(tempFile, preloadScript);
+            preloadScriptFile = tempFile;
+        }
+        let win = new electron.BrowserWindow({
+            show: false,
+            webPreferences: {
+                preload: preloadScriptFile,
+                nodeIntegration: preferences.nodeIntegration || false,
+                webSecurity: preferences.webSecurity || false,
+                images: preferences.images || false
+            }
+        });
+
+        if (preferences.onBeforeRequestPattern) {
+            win.webContents.session.webRequest.onBeforeRequest((details, callback) => {
+                if (details.webContentsId === win.webContents.id) {
+                    // Apply the pattern-based filtering from preferences
+                    callback({ cancel: false });
+                } else {
+                    callback({ cancel: false });
+                }
+            });
+        }
+
+        return new Promise((resolve, reject) => {
+            let preventCallback = false;
+            let abortAction = setTimeout(() => {
+                this._scrapeCleanup(win, abortAction);
+                if (!preventCallback) {
+                    reject(new Error(`Failed to load "${url}" within the given timeout of ${Math.floor(timeout / 1000)} seconds!`));
+                }
+            }, timeout);
+
+            win.webContents.on('dom-ready', () => win.webContents.executeJavaScript(this._scrapeDomPreparationScript));
+
+            win.webContents.on('did-fail-load', (event, errCode, errMessage, uri, isMain) => {
+                if (!preventCallback && errCode && errCode !== -3 && (isMain || uri === url)) {
+                    this._scrapeCleanup(win, abortAction);
+                    reject(new Error(errMessage + ' ' + uri));
+                }
+            });
+
+            win.webContents.on('did-finish-load', async () => {
+                try {
+                    if (await this._checkScrapeRedirection(win)) {
+                        return;
+                    }
+                    let jsResult = await win.webContents.executeJavaScript(runtimeScript);
+                    win.webContents.debugger.attach('1.3');
+                    // Return both jsResult and allow caller to use debugger via subsequent IPC
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    resolve(jsResult);
+                } catch (error) {
+                    preventCallback = true;
+                    this._scrapeCleanup(win, abortAction);
+                    reject(error);
+                }
+            });
+
+            win.loadURL(url, requestOptions);
         });
     }
 };

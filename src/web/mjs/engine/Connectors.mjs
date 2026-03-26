@@ -28,6 +28,25 @@ export default class Connectors {
         await this.register(systemPlugins);
         await this.register(userPlugins);
         await this.register(internalPlugins);
+
+        this._registerCertBypassDomains();
+    }
+
+    /**
+     * Collect domains from connectors that declare certBypass and send to main process.
+     */
+    _registerCertBypassDomains() {
+        const bypassDomains = this._list
+            .filter(c => c.certBypass && c.url)
+            .map(c => {
+                try { return new URL(c.url).hostname; }
+                catch { return null; }
+            })
+            .filter(Boolean);
+
+        if (bypassDomains.length > 0 && window.hakunekoAPI && window.hakunekoAPI.cert) {
+            window.hakunekoAPI.cert.registerBypassDomains([...new Set(bypassDomains)]);
+        }
     }
 
     get list() {

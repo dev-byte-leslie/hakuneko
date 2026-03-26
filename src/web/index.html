@@ -15,7 +15,6 @@
     <script src="./js/sql.min.js" defer></script>
     <script src="./js/exif-js.min.js" defer></script>
     <script type="module">
-        const electronDialog = require('electron').remote.dialog
         import HakuNeko from './mjs/HakuNeko.mjs'
 
         // https://github.com/electron/electron/blob/master/docs/api/dialog.md#dialogshowmessageboxbrowserwindow-options
@@ -27,7 +26,7 @@
                     message: message,
                     buttons: [ 'OK' ]
                 };
-                let response = await electronDialog.showMessageBox(options);
+                let response = await window.hakunekoAPI.dialog.showMessageBox(options);
                 return response === options.buttons.indexOf('OK');
             };
             confirm = async (message, title, type, buttons) => {
@@ -37,7 +36,7 @@
                     message: message,
                     buttons: buttons || [ 'Yes', 'No' ]
                 };
-                let response = await electronDialog.showMessageBox(options);
+                let response = await window.hakunekoAPI.dialog.showMessageBox(options);
                 return response.response === 0;
             };
         }
@@ -91,22 +90,21 @@
         main();
     </script>
     <script>
-        this.win=require('electron').remote.getCurrentWindow();
-
         function minimizeWindow(){
-            this.win.minimize();
+            window.hakunekoAPI.window.minimize();
         }
 
-        function maximizeWindow(){
-            if (! this.win.isMaximized()) {
-                this.win.maximize();
+        async function maximizeWindow(){
+            let isMaximized = await window.hakunekoAPI.window.isMaximized();
+            if (!isMaximized) {
+                window.hakunekoAPI.window.maximize();
             } else {
-                this.win.unmaximize();
+                window.hakunekoAPI.window.unmaximize();
             }
         }
 
         function closeWindow(){
-            this.win.close();
+            window.hakunekoAPI.window.close();
         }
     </script>
     <style>

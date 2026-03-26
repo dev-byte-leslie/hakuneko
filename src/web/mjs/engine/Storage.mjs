@@ -21,15 +21,12 @@ export default class Storage {
 
     // TODO: use dependency injection instead of globals for EbookGenerator
     constructor() {
-        let electron = require('electron');
-        this.dialog = electron.remote.dialog;
-        this.platform = electron.remote.process.platform;
-        this.shell = electron.remote.shell;
-        this.exec = electron.remote.require('child_process').exec;
+        this.platform = window.hakunekoAPI.platform;
         // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
         this.fs = require('fs');
         this.path = require('path');
-        this.config = this.path.join(electron.remote.app.getPath('userData'), 'hakuneko.');
+        let userDataPath = window.hakunekoAPI.app.getPathSync('userData') || '.';
+        this.config = this.path.join(userDataPath, 'hakuneko.');
         this.temp = this.path.join(require('os').tmpdir(), 'hakuneko');
         this._createDirectoryChain(this.temp);
 
@@ -49,7 +46,7 @@ export default class Storage {
      * Open the system's file browser and navigate to the given chapter item
      */
     showFolderContent(chapter) {
-        this.shell.showItemInFolder(this._chapterOutputPath(chapter));
+        window.hakunekoAPI.shell.showItemInFolder(this._chapterOutputPath(chapter));
     }
 
     /**
@@ -104,7 +101,7 @@ export default class Storage {
      * https://github.com/electron/electron/blob/master/docs/api/dialog.md#dialogshowopendialogbrowserwindow-options
      */
     async folderBrowser(rootPath) {
-        let result = await this.dialog.showOpenDialog({
+        let result = await window.hakunekoAPI.dialog.showOpenDialog({
             title: 'Download Directory for Mangas',
             //message: 'MESSAGE',
             defaultPath: rootPath,
@@ -328,7 +325,7 @@ export default class Storage {
             .then(data => {
                 let name = this.path.join(this.temp, this.path.basename(file));
                 // attach timestamp to force reload of already existing, but overwritten temp files
-                let page = encodeURI('file://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
+                let page = encodeURI('hakuneko-local://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
                 return new Promise((resolve, reject) => {
                     this.fs.writeFile(name, data, error => {
                         if (error) {
@@ -412,10 +409,11 @@ export default class Storage {
     }
 
     /**
-     *
+     * HAKU-0004: Generate hakuneko-local:// URLs for displaying downloaded content.
+     * Uses custom protocol instead of file:// so webSecurity: true doesn't block cross-origin loads.
      */
     _makeValidFileURL(directory, file) {
-        return encodeURI('file://' + this.path.join(directory, file).replace(/\\/g, '/'))
+        return encodeURI('hakuneko-local://' + this.path.join(directory, file).replace(/\\/g, '/'))
             // some special cases are not covered with encodeURI and needs to be replaced manually
             .replace(this.fileURISubstitutions.rgx, m => this.fileURISubstitutions.map[m]);
     }
@@ -603,10 +601,8 @@ export default class Storage {
             command = command.replace(/%C%/g, chapter.manga.connector.label);
             command = command.replace(/%M%/g, chapter.manga.title);
             command = command.replace(/%O%/g, chapter.title);
-            this.exec(command, { cwd: this.path.dirname(path), windowsHide: true }, error => {
-                if (error) {
-                    console.error(error);
-                }
+            window.hakunekoAPI.exec(command, { cwd: this.path.dirname(path), windowsHide: true }).catch(error => {
+                console.error(error);
             });
         }
         return Promise.resolve();
@@ -710,12 +706,10 @@ export default class Storage {
             let file = this.path.join(directory, this.sanatizePath(chapter.title + extensions.mkv));
             directory = this.path.join(directory, this.sanatizePath(chapter.title + extensions.m3u8));
             ffmpeg += ` -f matroska -y "${file}"`;
-            this.exec(ffmpeg, { cwd: directory, windowsHide: true }, error => {
-                if (error) {
-                    reject(error);
-                } else {
-                    resolve();
-                }
+            window.hakunekoAPI.exec(ffmpeg, { cwd: directory, windowsHide: true }).then(() => {
+                resolve();
+            }).catch(error => {
+                reject(error);
             });
         });
     }

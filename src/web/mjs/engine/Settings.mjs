@@ -37,12 +37,12 @@ export default class Settings extends EventTarget {
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Conenctors
     constructor() {
         super();
-        let app = require('electron').remote.app;
         let path = require('path');
         let docs = undefined;
         try {
             // on some circumstances the documents directory might not be found by electron
-            docs = app.getPath('documents');
+            docs = window.hakunekoAPI.app.getPathSync('documents');
+            if (!docs) docs = '.';
         } catch (e) {
             docs = '.';
         }
@@ -83,7 +83,7 @@ export default class Settings extends EventTarget {
                 'This setting has no effect when the application is in portable mode!'
             ].join('\n'),
             input: process.env.HAKUNEKO_PORTABLE ? types.disabled : types.directory,
-            value: app.getPath('userData')
+            value: window.hakunekoAPI.app.getPathSync('userData') || '.'
         };
 
         this.useSubdirectory = {
