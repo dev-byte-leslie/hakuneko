@@ -16,6 +16,8 @@ export default class Connector {
          */
         this.isLocked = false;
         this.initialized = false;
+        /** Whether this connector's domain should bypass certificate validation */
+        this.certBypass = false;
         //
         this.isUpdating = false;
         //
