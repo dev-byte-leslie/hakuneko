@@ -11,7 +11,7 @@
         "@logtrine/logtrine": "1.1.2",
         "asar": "3.2.0",
         "discord-rpc": "4.0.1",
-        "electron": "8.3.4",
+        "electron": "8.5.5",
         "eslint": "^8.57.0",
         "fs-extra": "11.3.4",
         "innosetup-compiler": "6.3.1",
@@ -720,7 +720,7 @@
 
     "eastasianwidth": ["eastasianwidth@0.2.0", "", {}, "sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA=="],
 
-    "electron": ["electron@8.3.4", "", { "dependencies": { "@electron/get": "^1.0.1", "@types/node": "^12.0.12", "extract-zip": "^1.0.3" }, "bin": { "electron": "cli.js" } }, "sha512-aSYXBV0PxYHmXhjGFpR0x38zbO7UTDex2JrT5tcqJpUZTY+sKdfo9PA1TpiyrHNjA5+Q8UseRUsydRedOTeZQA=="],
+    "electron": ["electron@8.5.5", "", { "dependencies": { "@electron/get": "^1.0.1", "@types/node": "^12.0.12", "extract-zip": "^1.0.3" }, "bin": { "electron": "cli.js" } }, "sha512-e355H+tRDial0m+X2v+l+0SnaATAPw4sNjv9qmdk/6MJz/glteVJwVJEnxTjPfEELIJSChrBWDBVpjdDvoBF4Q=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.322", "", {}, "sha512-vFU34OcrvMcH66T+dYC3G4nURmgfDVewMIu6Q2urXpumAPSMmzvcn04KVVV8Opikq8Vs5nUbO/8laNhNRqSzYw=="],
 
