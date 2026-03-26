@@ -10,7 +10,8 @@ module.exports = class UpdateServerManager {
         try {
             this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
             // NOTE: simple hack to check if URL is valid (must not throw error)
-            url.parse(applicationUpdateURL, true).hostname.length;
+            let parsed = url.parse(applicationUpdateURL, true);
+            if (!parsed.hostname) throw new Error('Invalid hostname');
             this._applicationUpdateURL = applicationUpdateURL;
         } catch(error) {
             this._logger.warn('Initialization of "UpdateServerManager" failed!', error);
