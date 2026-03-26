@@ -38,6 +38,7 @@ module.exports = class ElectronBootstrap {
         this._minimizeToTray = false; // only supported when tray is shown
         this._showTray = false;
         this._tray;
+        this._certBypassDomains = new Set();
     }
 
     /**
@@ -121,11 +122,22 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
-     * Ignore any certificate errors, such as self-signed, expiration, ...
+     * Handle certificate errors: only bypass for declared connector domains.
      */
     _certificateErrorHandler(event, webContents, url, error, certificate, callback) {
         event.preventDefault();
-        callback(true);
+        try {
+            const hostname = new URL(url).hostname;
+            if (this._certBypassDomains.has(hostname)) {
+                this._logger.warn(`[CertBypass] Accepting cert error for declared domain: ${hostname} (${error})`);
+                callback(true);
+                return;
+            }
+        } catch (e) {
+            // malformed URL — fall through to reject
+        }
+        this._logger.warn(`[CertReject] Rejecting cert error for: ${url} (${error})`);
+        callback(false);
     }
 
     /**
@@ -417,6 +429,17 @@ module.exports = class ElectronBootstrap {
      */
     _registerIPCHandlers() {
         const { ipcMain, dialog, shell, app, session } = electron;
+
+        // Certificate bypass domains (HAKU-0006)
+        ipcMain.handle('hakuneko:cert:registerBypassDomains', (event, domains) => {
+            if (Array.isArray(domains)) {
+                for (const domain of domains) {
+                    if (typeof domain === 'string') {
+                        this._certBypassDomains.add(domain);
+                    }
+                }
+            }
+        });
 
         // Dialog
         ipcMain.handle('hakuneko:dialog:showMessageBox', (event, options) => {

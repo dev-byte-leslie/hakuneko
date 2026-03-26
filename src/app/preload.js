@@ -37,6 +37,9 @@ const hakunekoAPI = {
         },
         setProxy: (config) => ipcRenderer.invoke('hakuneko:session:setProxy', config),
     },
+    cert: {
+        registerBypassDomains: (domains) => ipcRenderer.invoke('hakuneko:cert:registerBypassDomains', domains),
+    },
     clipboard: {
         readText: () => clipboard.readText(),
         writeText: (text) => clipboard.writeText(text),
