@@ -38,7 +38,7 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          review_prompt: |
+          direct_prompt: |
             Review this PR with focus on:
             1. **Security** — Electron-specific risks (nodeIntegration, contextIsolation, webSecurity, protocol handlers, IPC boundaries)
             2. **Correctness** — Logic errors, race conditions, missing error handling
