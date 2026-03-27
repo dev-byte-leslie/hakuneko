@@ -66,6 +66,7 @@ jobs:
         timeout-minutes: 15
         env:
           DISPLAY: ':99'
+          ELECTRON_DISABLE_SANDBOX: '1'
         run: npm run test -- --coverage
 
       - name: Upload Coverage Report
