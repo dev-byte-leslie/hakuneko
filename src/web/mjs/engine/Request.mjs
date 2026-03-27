@@ -83,7 +83,6 @@ export default class Request {
     // have been moved to ElectronBootstrap.js (main process) as part of HAKU-0005.
     // The fetch methods now delegate BrowserWindow management to the main process via IPC.
 
-
     /**
      * The browser window of electron does not support request objects,
      * so it is required to convert the request to supported options.
