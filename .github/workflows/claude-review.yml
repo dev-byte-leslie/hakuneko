@@ -1,0 +1,49 @@
+# AI-assisted PR review using Claude Code
+# Requires ANTHROPIC_API_KEY secret to be configured in repository settings
+
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to review'
+        required: true
+        type: number
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  review:
+    name: Claude Review
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+        timeout-minutes: 5
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          direct_prompt: |
+            Review this PR with focus on:
+            1. **Security** — Electron-specific risks (nodeIntegration, contextIsolation, webSecurity, protocol handlers, IPC boundaries)
+            2. **Correctness** — Logic errors, race conditions, missing error handling
+            3. **Conventions** — Adherence to project style (small pure functions, semantic types, JSDoc with business context)
+            4. **Test coverage** — Are new code paths tested? Any missing edge cases?
+
+            Flag critical issues as blockers. Be concise.
+        timeout-minutes: 10

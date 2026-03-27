@@ -39,8 +39,11 @@ export default class Connectors {
         const bypassDomains = this._list
             .filter(c => c.certBypass && c.url)
             .map(c => {
-                try { return new URL(c.url).hostname; }
-                catch { return null; }
+                try {
+                    return new URL(c.url).hostname;
+                } catch {
+                    return null;
+                }
             })
             .filter(Boolean);
 
