@@ -50,6 +50,9 @@ cache
 /tasks/
 /docs/
 
+# Smoke test reports
+tools/smoke-test/reports/
+
 # Misc
 .vercel
 .helper
