@@ -1,0 +1,15 @@
+{
+  "name": "@hakuneko/smoke-test",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tiered smoke test suite for HakuNeko connectors — runs outside Electron",
+  "dependencies": {
+    "linkedom": "^0.18.0"
+  },
+  "scripts": {
+    "tier1": "bun run run.mjs --tier=1",
+    "tier2": "bun run run.mjs --tier=2",
+    "tier3": "bun run run.mjs --tier=3"
+  }
+}

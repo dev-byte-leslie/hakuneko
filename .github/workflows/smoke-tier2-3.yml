@@ -1,0 +1,90 @@
+name: Smoke Test - Tier 2 & 3 (Weekly Deep Validation)
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'  # Monday 04:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: smoke-deep-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tier2:
+    name: Tier 2 - Manga List (Top 50)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install smoke-test dependencies
+        working-directory: tools/smoke-test
+        run: bun install
+
+      - name: Run Tier 2 manga list tests
+        working-directory: tools/smoke-test
+        continue-on-error: true
+        run: bun run tier2
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-tier2-reports
+          path: tools/smoke-test/reports/
+          retention-days: 30
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Smoke Tier 2 Results
+          path: tools/smoke-test/reports/tier2-junit.xml
+          reporter: java-junit
+          fail-on-error: false
+
+  tier3:
+    name: Tier 3 - Full Pipeline (Top 10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: tier2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install smoke-test dependencies
+        working-directory: tools/smoke-test
+        run: bun install
+
+      - name: Run Tier 3 full pipeline tests
+        working-directory: tools/smoke-test
+        continue-on-error: true
+        run: bun run tier3
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-tier3-reports
+          path: tools/smoke-test/reports/
+          retention-days: 30
+
+      - name: Publish test results
+        if: always()
+        uses: dorny/test-reporter@v1
+        with:
+          name: Smoke Tier 3 Results
+          path: tools/smoke-test/reports/tier3-junit.xml
+          reporter: java-junit
+          fail-on-error: false

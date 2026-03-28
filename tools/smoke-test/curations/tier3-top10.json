@@ -1,0 +1,72 @@
+[
+  {
+    "id": "mangadex",
+    "label": "MangaDex",
+    "seedManga": { "id": "a1c7c817-4e59-43b7-9365-09675a149a6f", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "comick",
+    "label": "ComicK",
+    "seedManga": { "id": "one-piece", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "mangapill",
+    "label": "Mangapill",
+    "seedManga": { "id": "/manga/2/one-piece", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "tcbscans",
+    "label": "TCB Scans",
+    "seedManga": { "id": "/manga/5/one-piece", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "mangahub",
+    "label": "MangaHub",
+    "seedManga": { "id": "one-piece", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "mangapark-en",
+    "label": "MangaPark",
+    "seedManga": { "id": "/title/one-piece", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "mangahubru",
+    "label": "MangaHub.RU",
+    "seedManga": { "id": "/manga/vanpanchmen", "title": "Onepunch-Man" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "reaperscansbr",
+    "label": "Reaper Scans BR",
+    "seedManga": { "id": "/manga/solo-leveling", "title": "Solo Leveling" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "manganel",
+    "label": "Manganato",
+    "seedManga": { "id": "/manga-aa951409", "title": "One Piece" },
+    "minChapters": 1,
+    "minPages": 1
+  },
+  {
+    "id": "reaperscans",
+    "label": "Reaper Scans",
+    "seedManga": { "id": "/series/solo-leveling", "title": "Solo Leveling" },
+    "minChapters": 1,
+    "minPages": 1
+  }
+]
