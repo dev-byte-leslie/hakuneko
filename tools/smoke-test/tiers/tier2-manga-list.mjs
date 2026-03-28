@@ -19,16 +19,12 @@ const TIMEOUT_MS = 30_000;
  * @returns {Promise<{ passed: boolean, count: number, error?: string }>}
  */
 async function testMangaList(connector, minMangas) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
+    let timer;
     try {
         const mangas = await Promise.race([
             connector._getMangas(),
             new Promise((_, reject) => {
-                controller.signal.addEventListener('abort', () =>
-                    reject(new Error(`Timeout after ${TIMEOUT_MS}ms`))
-                );
+                timer = setTimeout(() => reject(new Error(`Timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
             }),
         ]);
 
