@@ -19,20 +19,16 @@ const TIMEOUT_MS = 60_000;
  * @param {number} minPages
  */
 async function testFullPipeline(connector, seedManga, minChapters, minPages) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const abortPromise = new Promise((_, reject) => {
-        controller.signal.addEventListener('abort', () =>
-            reject(new Error(`Timeout after ${TIMEOUT_MS}ms`))
-        );
+    let timer;
+    const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Timeout after ${TIMEOUT_MS}ms`)), TIMEOUT_MS);
     });
 
     try {
         // Step 1: Get chapters for seed manga
         const chapters = await Promise.race([
             connector._getChapters(seedManga),
-            abortPromise,
+            timeoutPromise,
         ]);
 
         if (!Array.isArray(chapters) || chapters.length < minChapters) {
@@ -48,7 +44,7 @@ async function testFullPipeline(connector, seedManga, minChapters, minPages) {
         // Step 2: Get pages for first chapter
         const pages = await Promise.race([
             connector._getPages(chapters[0]),
-            abortPromise,
+            timeoutPromise,
         ]);
 
         clearTimeout(timer);

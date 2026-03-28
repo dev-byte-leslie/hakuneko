@@ -11,10 +11,9 @@
  */
 export async function headOrGet(url, timeoutMs = 10_000) {
     const start = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
         let response = await fetch(url, {
             method: 'HEAD',
             signal: controller.signal,
@@ -39,6 +38,7 @@ export async function headOrGet(url, timeoutMs = 10_000) {
             error: null,
         };
     } catch (error) {
+        clearTimeout(timer);
         return {
             status: 0,
             headers: {},
