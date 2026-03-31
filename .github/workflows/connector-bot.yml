@@ -72,7 +72,7 @@ jobs:
                 '',
                 'Could not extract the required fields from this issue.',
                 '',
-                `**Error:** ${process.env.PARSE_ERROR}`,
+                `**Error:** \`${process.env.PARSE_ERROR?.slice(0, 500) ?? 'Unknown parse error'}\``,
                 '',
                 'Please make sure the issue uses the **Suggest a new Connector/Website** template and that the **Website Name** and **Site URL** fields are filled in.',
               ].join('\n'),

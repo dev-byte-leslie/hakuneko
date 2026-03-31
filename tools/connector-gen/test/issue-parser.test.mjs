@@ -85,6 +85,14 @@ describe('normaliseUrl', () => {
     it('preserves http:// when explicitly set', () => {
         expect(normaliseUrl('http://example.com')).toBe('http://example.com');
     });
+
+    it('throws IssueParseError for a garbage string', () => {
+        expect(() => normaliseUrl('not a url !!')).toThrow(IssueParseError);
+    });
+
+    it('throws IssueParseError for an empty string', () => {
+        expect(() => normaliseUrl('')).toThrow(IssueParseError);
+    });
 });
 
 describe('toGeneratorInput', () => {

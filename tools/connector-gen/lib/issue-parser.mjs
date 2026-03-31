@@ -31,6 +31,22 @@ const GITHUB_NO_RESPONSE = '_No response_';
  */
 
 /**
+ * Typed error for missing required issue fields.
+ * The bot catches this to post a helpful comment on the issue.
+ */
+export class IssueParseError extends Error {
+    /**
+     * @param {string} message - Error message
+     * @param {string} fieldName - Name of the field that caused the error
+     */
+    constructor(message, fieldName) {
+        super(message);
+        this.name = 'IssueParseError';
+        this.fieldName = fieldName;
+    }
+}
+
+/**
  * Parse a GitHub issue body into structured connector generator input.
  * @param {string} body - Raw issue body markdown
  * @returns {ParsedIssue}
@@ -48,7 +64,7 @@ export function parseIssueBody(body) {
     const relationship = _optional(sections, 'Website relationship');
     const additionalDetails = _optional(sections, 'Additional details');
 
-    const rawLanguages = sections.get('Languages') ?? '';
+    const rawLanguages = sections.get('Languages') || '';
     const languages = _parseLanguages(rawLanguages);
 
     return {
@@ -88,6 +104,14 @@ export function normaliseUrl(url) {
     if (!u.startsWith('http://') && !u.startsWith('https://')) {
         u = 'https://' + u;
     }
+    try {
+        new URL(u);
+    } catch (error) {
+        throw new IssueParseError(
+            `"${url.trim()}" is not a valid URL. Please provide a full URL like https://example.com`,
+            'websiteUrl'
+        );
+    }
     return u;
 }
 
@@ -125,14 +149,15 @@ function _parseSections(body) {
  * @returns {string}
  */
 function _required(sections, label, fieldName) {
-    const value = sections.get(label)?.trim();
-    if (!value || value === GITHUB_NO_RESPONSE) {
+    const value = sections.get(label);
+    const trimmed = value ? value.trim() : '';
+    if (!trimmed || trimmed === GITHUB_NO_RESPONSE) {
         throw new IssueParseError(
             `Required field "${label}" is missing or empty. Please fill in the ${fieldName} field in the issue template.`,
             fieldName
         );
     }
-    return value;
+    return trimmed;
 }
 
 /**
@@ -142,9 +167,10 @@ function _required(sections, label, fieldName) {
  * @returns {string|null}
  */
 function _optional(sections, label) {
-    const value = sections.get(label)?.trim();
-    if (!value || value === GITHUB_NO_RESPONSE) return null;
-    return value;
+    const value = sections.get(label);
+    const trimmed = value ? value.trim() : '';
+    if (!trimmed || trimmed === GITHUB_NO_RESPONSE) return null;
+    return trimmed;
 }
 
 /**
@@ -167,17 +193,4 @@ function _parseLanguages(raw) {
     }
 
     return langs;
-}
-
-/**
- * Typed error for missing required issue fields.
- * The bot catches this to post a helpful comment on the issue.
- */
-export class IssueParseError extends Error {
-    /** @param {string} message @param {string} fieldName */
-    constructor(message, fieldName) {
-        super(message);
-        this.name = 'IssueParseError';
-        this.fieldName = fieldName;
-    }
 }
