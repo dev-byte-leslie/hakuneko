@@ -74,3 +74,24 @@ jobs:
           path: coverage/
           retention-days: 14
         timeout-minutes: 5
+
+  connector-gen-tests:
+    name: Connector Gen Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install connector-gen dependencies
+        working-directory: tools/connector-gen
+        run: bun install
+
+      - name: Run connector-gen tests
+        working-directory: tools/connector-gen
+        run: bun test
