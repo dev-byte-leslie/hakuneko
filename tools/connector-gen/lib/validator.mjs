@@ -108,7 +108,11 @@ async function _checkLint(source) {
         // If eslint can't run (not installed), treat as warning not blocker
         return { name: 'lint', passed: true, message: `ESLint not available: ${err.message}` };
     } finally {
-        try { unlinkSync(tmpFile); } catch { /* ignore */ }
+        try {
+            unlinkSync(tmpFile);
+        } catch {
+            /* ignore */
+        }
     }
 }
 
@@ -156,7 +160,11 @@ async function _checkImport(source) {
         }
         return { name: 'import', passed: false, message: err.message };
     } finally {
-        try { unlinkSync(tmpFile); } catch { /* ignore */ }
+        try {
+            unlinkSync(tmpFile);
+        } catch {
+            /* ignore */
+        }
     }
 }
 
@@ -168,7 +176,7 @@ async function _checkImport(source) {
 async function _checkHttp(url) {
     try {
         const { headOrGet } = await import(`${SMOKE_TEST_LIB}/http-client.mjs`);
-        const result = await headOrGet(url, 15_000);
+        const result = await headOrGet(url, 15000);
 
         if (result.error) {
             return { name: 'http', passed: false, message: result.error.message };
@@ -212,7 +220,7 @@ async function _checkSelector(baseUrl, template, mangaListPath) {
     try {
         const listUrl = new URL(mangaListPath, baseUrl).href;
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 20_000);
+        const timer = setTimeout(() => controller.abort(), 20000);
 
         const response = await fetch(listUrl, {
             signal: controller.signal,
