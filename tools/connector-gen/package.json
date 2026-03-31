@@ -1,0 +1,17 @@
+{
+  "name": "@hakuneko/connector-gen",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Automated connector generation pipeline — fingerprints CMS templates and generates .mjs connector files outside Electron",
+  "dependencies": {
+    "node-html-parser": "^6.1.13",
+    "mustache": "^4.2.0"
+  },
+  "scripts": {
+    "test": "bun test",
+    "generate": "bun run cli.mjs generate",
+    "fingerprint": "bun run cli.mjs fingerprint",
+    "validate": "bun run cli.mjs validate"
+  }
+}

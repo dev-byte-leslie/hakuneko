@@ -3,6 +3,10 @@ description: Want a new website to be added in hakuneko ?
 title: "[Site Request] thewebsitename"
 labels: ["Website Suggestion"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        > **🤖 Auto-processing note:** When a maintainer triages this request, a bot may automatically identify the site's CMS template, generate a connector, and open a pull request — all without manual developer intervention. You'll receive a comment on this issue with the result (either a PR link or an explanation of why auto-generation wasn't possible).
   - type: checkboxes
     attributes:
       label: Is there an existing request for this website?

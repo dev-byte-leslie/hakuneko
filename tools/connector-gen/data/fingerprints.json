@@ -1,0 +1,188 @@
+{
+  "_comment": "Weighted signal database for CMS template detection. Signals sum to ~100 per template; threshold 50 requires at least two strong signals to match, preventing false positives from coincidental single matches.",
+  "templates": {
+    "WordPressMadara": {
+      "threshold": 50,
+      "defaults": {
+        "path": "/manga/list-mode/",
+        "import": "./templates/WordPressMadara.mjs"
+      },
+      "signals": [
+        {
+          "type": "html-content",
+          "value": "madara_load_more",
+          "weight": 45,
+          "_note": "Madara's AJAX action name — unique to this theme"
+        },
+        {
+          "type": "html-content",
+          "value": "wp-manga-chapter",
+          "weight": 25,
+          "_note": "Madara's chapter list CSS class"
+        },
+        {
+          "type": "html-selector",
+          "value": "div.post-title h3 a",
+          "weight": 20,
+          "_note": "Madara manga title query selector"
+        },
+        {
+          "type": "html-selector",
+          "value": "li.wp-manga-chapter",
+          "weight": 20,
+          "_note": "Madara chapter list item"
+        },
+        {
+          "type": "url-probe",
+          "value": "/wp-admin/admin-ajax.php",
+          "weight": 15,
+          "_note": "WordPress AJAX endpoint — present on all WP sites, weak signal alone"
+        }
+      ]
+    },
+    "WordPressMangastream": {
+      "threshold": 50,
+      "defaults": {
+        "path": "/manga/list-mode/",
+        "import": "./templates/WordPressMangastream.mjs"
+      },
+      "signals": [
+        {
+          "type": "script-var",
+          "value": "ts_reader",
+          "weight": 45,
+          "_note": "Mangastream theme's reader initialisation variable — unique to this theme"
+        },
+        {
+          "type": "html-selector",
+          "value": "div.soralist",
+          "weight": 30,
+          "_note": "Mangastream series list container"
+        },
+        {
+          "type": "html-content",
+          "value": "ts_reader.params",
+          "weight": 30,
+          "_note": "Mangastream reader params object"
+        },
+        {
+          "type": "html-selector",
+          "value": "div#readerarea",
+          "weight": 20,
+          "_note": "Mangastream chapter reader area"
+        }
+      ]
+    },
+    "FoolSlide": {
+      "threshold": 50,
+      "defaults": {
+        "path": "/directory/",
+        "import": "./templates/FoolSlide.mjs"
+      },
+      "signals": [
+        {
+          "type": "html-content",
+          "value": "JSON.parse(atob(",
+          "weight": 45,
+          "_note": "FoolSlide's base64-encoded page data pattern — highly distinctive"
+        },
+        {
+          "type": "html-content",
+          "value": "comic_page",
+          "weight": 20,
+          "_note": "FoolSlide page variable name used in reader scripts"
+        },
+        {
+          "type": "html-selector",
+          "value": "div.list div.group",
+          "weight": 25,
+          "_note": "FoolSlide manga list structure"
+        },
+        {
+          "type": "html-selector",
+          "value": "div.list div.element div.title a",
+          "weight": 20,
+          "_note": "FoolSlide chapter list selector"
+        },
+        {
+          "type": "url-probe",
+          "value": "/directory/",
+          "weight": 10,
+          "_note": "FoolSlide manga directory path — present on most FoolSlide installs"
+        },
+        {
+          "type": "html-content",
+          "value": "adult=true",
+          "weight": 10,
+          "_note": "FoolSlide adult content form field"
+        }
+      ]
+    },
+    "SinMH": {
+      "threshold": 50,
+      "defaults": {
+        "path": "/list_1/",
+        "import": "./templates/SinMH.mjs"
+      },
+      "signals": [
+        {
+          "type": "html-content",
+          "value": "SinMH.getChapterImage",
+          "weight": 55,
+          "_note": "SinMH API method — unique to this CMS"
+        },
+        {
+          "type": "html-selector",
+          "value": "ul#contList li p.ell a",
+          "weight": 30,
+          "_note": "SinMH manga list selector"
+        },
+        {
+          "type": "html-selector",
+          "value": "#checkAdult",
+          "weight": 25,
+          "_note": "SinMH adult content button"
+        },
+        {
+          "type": "html-content",
+          "value": "isAdult=1",
+          "weight": 15,
+          "_note": "SinMH adult cookie value"
+        }
+      ]
+    },
+    "MadTheme": {
+      "threshold": 50,
+      "defaults": {
+        "path": "/az-list",
+        "import": "./templates/MadTheme.mjs"
+      },
+      "signals": [
+        {
+          "type": "html-content",
+          "value": "chapImages",
+          "weight": 45,
+          "_note": "MadTheme's global page image variable — unique to this theme"
+        },
+        {
+          "type": "html-content",
+          "value": "/api/manga/",
+          "weight": 35,
+          "_note": "MadTheme's chapter API endpoint pattern"
+        },
+        {
+          "type": "html-selector",
+          "value": "div.book-detailed-item",
+          "weight": 25,
+          "_note": "MadTheme manga card container"
+        },
+        {
+          "type": "html-content",
+          "value": "mainServer",
+          "weight": 20,
+          "_note": "MadTheme image server variable"
+        }
+      ]
+    }
+  }
+}
