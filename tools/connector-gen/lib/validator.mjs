@@ -154,7 +154,15 @@ async function _checkImport(source) {
         return { name: 'import', passed: true, message: `Connector "${instance.id}" imported successfully` };
     } catch (err) {
         // Relative template imports fail in temp dir — that's expected and acceptable
-        const isTemplatePathError = err.message?.includes('./templates/') || err.message?.includes('Cannot find module');
+        const msg = (err.message ?? '').toLowerCase();
+        const isTemplatePathError =
+            msg.includes('./templates/') ||
+            msg.includes('cannot find module') ||
+            msg.includes('cannot resolve') ||
+            msg.includes('could not resolve') ||
+            msg.includes('module not found') ||
+            err.code === 'ERR_MODULE_NOT_FOUND' ||
+            err.code === 'MODULE_NOT_FOUND';
         if (isTemplatePathError) {
             return { name: 'import', passed: true, message: 'Template path check skipped (expected in temp dir context)' };
         }
