@@ -49,5 +49,11 @@
     "test:smoke:tier1": "cd tools/smoke-test && bun run tier1",
     "test:smoke:tier2": "cd tools/smoke-test && bun run tier2",
     "test:smoke:tier3": "cd tools/smoke-test && bun run tier3"
+  },
+  "jest": {
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "<rootDir>/tools/"
+    ]
   }
 }

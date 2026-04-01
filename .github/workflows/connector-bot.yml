@@ -1,0 +1,286 @@
+name: Connector Bot
+
+# Triggers when a maintainer applies the "Website Suggestion" label to an issue.
+# Using label-application (not issue creation) as the trigger gives maintainers
+# a manual triage gate before automation runs — prevents running on spam issues.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: connector-bot-issue-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  generate-connector:
+    name: Auto-generate connector
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Only run when the specific label is applied (not on every label event)
+    if: github.event.label.name == 'Website Suggestion'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.10"
+
+      - name: Install connector-gen dependencies
+        working-directory: tools/connector-gen
+        run: bun install
+
+      - name: Parse issue body
+        id: parse
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { parseIssueBody, toGeneratorInput, normaliseUrl } = await import('${{ github.workspace }}/tools/connector-gen/lib/issue-parser.mjs');
+
+            const body = context.payload.issue.body ?? '';
+            try {
+              const parsed = parseIssueBody(body);
+              core.setOutput('website_name', parsed.websiteName);
+              core.setOutput('website_url', normaliseUrl(parsed.websiteUrl));
+              core.setOutput('languages', parsed.languages.join(','));
+              core.setOutput('additional_details', parsed.additionalDetails ?? '');
+              core.setOutput('parse_ok', 'true');
+            } catch (err) {
+              core.setOutput('parse_ok', 'false');
+              core.setOutput('parse_error', err.message);
+            }
+
+      - name: Comment on parse failure
+        if: steps.parse.outputs.parse_ok == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: [
+                '## 🤖 Connector Bot — Parse Error',
+                '',
+                'Could not extract the required fields from this issue.',
+                '',
+                `**Error:** \`${process.env.PARSE_ERROR?.slice(0, 500) ?? 'Unknown parse error'}\``,
+                '',
+                'Please make sure the issue uses the **Suggest a new Connector/Website** template and that the **Website Name** and **Site URL** fields are filled in.',
+              ].join('\n'),
+            });
+        env:
+          PARSE_ERROR: ${{ steps.parse.outputs.parse_error }}
+
+      - name: Fingerprint site
+        if: steps.parse.outputs.parse_ok == 'true'
+        id: fingerprint
+        working-directory: tools/connector-gen
+        run: |
+          OUTPUT=$(bun run cli.mjs fingerprint "$WEBSITE_URL" --verbose 2>&1) || true
+          echo "$OUTPUT"
+          # Extract template and confidence from output
+          TEMPLATE=$(echo "$OUTPUT" | grep 'Template :' | awk '{print $NF}')
+          CONFIDENCE=$(echo "$OUTPUT" | grep 'Confidence:' | awk '{print $NF}')
+          echo "template=$TEMPLATE" >> $GITHUB_OUTPUT
+          echo "confidence=$CONFIDENCE" >> $GITHUB_OUTPUT
+          if [ -n "$TEMPLATE" ]; then
+            echo "fingerprint_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "fingerprint_ok=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          WEBSITE_URL: ${{ steps.parse.outputs.website_url }}
+
+      - name: Comment on fingerprint failure
+        if: steps.parse.outputs.parse_ok == 'true' && steps.fingerprint.outputs.fingerprint_ok == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body: [
+                '## 🤖 Connector Bot — Template Not Detected',
+                '',
+                `Could not automatically identify the CMS template for **${process.env.WEBSITE_URL}**.`,
+                '',
+                'This can happen because:',
+                '- The site uses a custom or unsupported CMS',
+                '- The site is behind CloudFlare or another bot-protection service',
+                '- The site is currently down',
+                '',
+                'This issue has been labeled `needs-manual-connector` for manual review.',
+              ].join('\n'),
+            });
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels: ['needs-manual-connector'],
+            });
+        env:
+          WEBSITE_URL: ${{ steps.parse.outputs.website_url }}
+
+      - name: Generate connector
+        if: steps.parse.outputs.parse_ok == 'true' && steps.fingerprint.outputs.fingerprint_ok == 'true'
+        id: generate
+        working-directory: tools/connector-gen
+        run: |
+          LANG_FLAGS=$(echo "$LANGUAGES" | tr ',' '\n' | grep -v '^manga$' | head -1)
+          bun run cli.mjs generate "$WEBSITE_URL" \
+            --name "$WEBSITE_NAME" \
+            --template "$TEMPLATE" \
+            --lang "${LANG_FLAGS:-english}" \
+            --output "../../src/web/mjs/connectors/" \
+            2>&1 | tee /tmp/generate-output.txt
+          EXIT_CODE=$?
+          echo "generate_ok=$([ $EXIT_CODE -eq 0 ] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "output<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/generate-output.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        env:
+          WEBSITE_URL: ${{ steps.parse.outputs.website_url }}
+          WEBSITE_NAME: ${{ steps.parse.outputs.website_name }}
+          TEMPLATE: ${{ steps.fingerprint.outputs.template }}
+          LANGUAGES: ${{ steps.parse.outputs.languages }}
+
+      - name: Create branch and commit
+        if: steps.generate.outputs.generate_ok == 'true'
+        id: commit
+        run: |
+          BRANCH="connector-bot/issue-${{ github.event.issue.number }}"
+          git config user.name "connector-bot[bot]"
+          git config user.email "connector-bot@hakuneko.app"
+          git checkout -b "$BRANCH"
+          git add src/web/mjs/connectors/
+          git commit -m "Add auto-generated connector for issue #${{ github.event.issue.number }}"
+          git push origin "$BRANCH"
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create pull request
+        if: steps.generate.outputs.generate_ok == 'true'
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const confidence = parseInt(process.env.CONFIDENCE) || 0;
+            const autoMerge = confidence >= 60;
+
+            const pr = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Add connector: ${process.env.WEBSITE_NAME} (auto-generated)`,
+              head: process.env.BRANCH,
+              base: 'master',
+              body: [
+                `## Auto-generated connector`,
+                '',
+                `Closes #${context.payload.issue.number}`,
+                '',
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| Site | ${process.env.WEBSITE_URL} |`,
+                `| Template | ${process.env.TEMPLATE} |`,
+                `| Confidence | ${process.env.CONFIDENCE} |`,
+                `| Auto-merge eligible | ${autoMerge ? '✅ Yes (confidence ≥ 60)' : '⚠️ No (confidence < 60, needs review)'} |`,
+                '',
+                '### Validation Output',
+                '```',
+                process.env.GENERATE_OUTPUT,
+                '```',
+                '',
+                '---',
+                '🤖 Generated by connector-bot',
+              ].join('\n'),
+              draft: !autoMerge,
+            });
+
+            core.setOutput('pr_url', pr.data.html_url);
+            core.setOutput('pr_number', pr.data.number);
+            core.setOutput('auto_merge_eligible', autoMerge.toString());
+        env:
+          WEBSITE_NAME: ${{ steps.parse.outputs.website_name }}
+          WEBSITE_URL: ${{ steps.parse.outputs.website_url }}
+          TEMPLATE: ${{ steps.fingerprint.outputs.template }}
+          CONFIDENCE: ${{ steps.fingerprint.outputs.confidence }}
+          BRANCH: ${{ steps.commit.outputs.branch }}
+          GENERATE_OUTPUT: ${{ steps.generate.outputs.output }}
+
+      - name: Enable auto-merge on high-confidence PRs
+        if: steps.pr.outputs.auto_merge_eligible == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: parseInt(process.env.PR_NUMBER),
+              auto_merge: { merge_method: 'merge' },
+            });
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        continue-on-error: true   # auto-merge requires branch protection rules; ignore if not configured
+
+      - name: Comment on issue with result
+        if: always() && steps.parse.outputs.parse_ok == 'true' && steps.fingerprint.outputs.fingerprint_ok == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prUrl = process.env.PR_URL;
+            const confidence = parseInt(process.env.CONFIDENCE) || 0;
+            const generateOk = process.env.GENERATE_OK === 'true';
+
+            let body;
+            if (generateOk && prUrl) {
+              body = [
+                '## 🤖 Connector Bot — PR Created',
+                '',
+                `A connector has been automatically generated: **${prUrl}**`,
+                '',
+                `| Template | Confidence | Auto-merge |`,
+                `|----------|-----------|------------|`,
+                `| ${process.env.TEMPLATE} | ${confidence} | ${confidence >= 60 ? '✅ eligible' : '⚠️ manual review needed'} |`,
+                '',
+                confidence < 60
+                  ? '> **Note:** Confidence is below 60. The PR has been created as a draft and requires manual review before merging.'
+                  : '> Auto-merge will fire once CI passes.',
+              ].join('\n');
+            } else {
+              body = [
+                '## 🤖 Connector Bot — Generation Failed',
+                '',
+                `Template **${process.env.TEMPLATE}** was detected (confidence: ${confidence}), but the connector generation or validation step failed.`,
+                '',
+                'This issue has been labeled `needs-manual-connector` for manual review.',
+              ].join('\n');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.payload.issue.number,
+                labels: ['needs-manual-connector'],
+              });
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.issue.number,
+              body,
+            });
+        env:
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          TEMPLATE: ${{ steps.fingerprint.outputs.template }}
+          CONFIDENCE: ${{ steps.fingerprint.outputs.confidence }}
+          GENERATE_OK: ${{ steps.generate.outputs.generate_ok }}

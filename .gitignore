@@ -53,6 +53,9 @@ cache
 # Smoke test reports
 tools/smoke-test/reports/
 
+# Connector gen
+.claude-flow/
+
 # Misc
 .vercel
 .helper
@@ -61,3 +64,4 @@ tools/smoke-test/reports/
 *.key
 *.pem
 CNAME
+/claude-flow.config.json
