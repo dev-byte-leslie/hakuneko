@@ -14,8 +14,8 @@ import { resolve } from 'node:path';
 import { extractConnectorUrls } from '../../smoke-test/lib/url-extractor.mjs';
 import { headOrGet, withConcurrencyLimit } from '../../smoke-test/lib/http-client.mjs';
 
-const CONCURRENCY = 10;   // weekly background job — be friendly to external sites
-const TIMEOUT_MS  = 15_000; // dead sites may slow-TCP-timeout rather than fast-fail
+const CONCURRENCY = 10; // weekly background job — be friendly to external sites
+const TIMEOUT_MS = 15_000; // dead sites may slow-TCP-timeout rather than fast-fail
 
 /**
  * @typedef {{
@@ -76,7 +76,7 @@ async function probeRedirectTarget(originalUrl) {
 function isDifferentDomain(original, location) {
     try {
         const origHost = new URL(original).hostname.replace(/^www\./, '');
-        const locHost  = new URL(new URL(location, original).href).hostname.replace(/^www\./, '');
+        const locHost = new URL(new URL(location, original).href).hostname.replace(/^www\./, '');
         return origHost !== locHost;
     } catch {
         return false;
@@ -103,7 +103,7 @@ export async function scanDeadLinks(connectors) {
         if (status >= 200 && status < 300) {
             const location = await probeRedirectTarget(connector.url);
             if (location && isDifferentDomain(connector.url, location)) {
-                return /** @type {ScanResult} */ ({
+                return /** @type {ScanResult} */ {
                     id:          connector.id,
                     label:       connector.label,
                     url:         connector.url,
@@ -112,7 +112,7 @@ export async function scanDeadLinks(connectors) {
                     redirectUrl: location,
                     error:       null,
                     durationMs,
-                });
+                };
             }
             // Truly alive (no redirect, or same-domain redirect) — omit
             return null;
@@ -120,7 +120,7 @@ export async function scanDeadLinks(connectors) {
 
         // CloudFlare block — list separately (informational; likely alive in Electron)
         if (isCloudFlare(status, headers)) {
-            return /** @type {ScanResult} */ ({
+            return /** @type {ScanResult} */ {
                 id:          connector.id,
                 label:       connector.label,
                 url:         connector.url,
@@ -129,12 +129,12 @@ export async function scanDeadLinks(connectors) {
                 redirectUrl: null,
                 error:       null,
                 durationMs,
-            });
+            };
         }
 
         // Network error / timeout / DNS failure
         if (error) {
-            return /** @type {ScanResult} */ ({
+            return /** @type {ScanResult} */ {
                 id:          connector.id,
                 label:       connector.label,
                 url:         connector.url,
@@ -143,11 +143,11 @@ export async function scanDeadLinks(connectors) {
                 redirectUrl: null,
                 error:       error.message ?? String(error),
                 durationMs,
-            });
+            };
         }
 
         // 4xx / 5xx (non-CF)
-        return /** @type {ScanResult} */ ({
+        return /** @type {ScanResult} */ {
             id:          connector.id,
             label:       connector.label,
             url:         connector.url,
@@ -156,7 +156,7 @@ export async function scanDeadLinks(connectors) {
             redirectUrl: null,
             error:       null,
             durationMs,
-        });
+        };
     });
 
     const raw = await withConcurrencyLimit(tasks, CONCURRENCY);
@@ -174,9 +174,9 @@ export async function scanDeadLinks(connectors) {
  * @returns {string}
  */
 export function formatReport(results, scanDate, totalScanned, elapsedSec) {
-    const dead        = results.filter(r => r.status === 'dead');
-    const redirected  = results.filter(r => r.status === 'redirected');
-    const cloudflare  = results.filter(r => r.status === 'cloudflare');
+    const dead = results.filter(r => r.status === 'dead');
+    const redirected = results.filter(r => r.status === 'redirected');
+    const cloudflare = results.filter(r => r.status === 'cloudflare');
 
     const tableRow = (cols) => `| ${cols.join(' | ')} |`;
 
@@ -189,7 +189,7 @@ export function formatReport(results, scanDate, totalScanned, elapsedSec) {
                 r.label ?? r.id ?? '—',
                 r.url,
                 r.statusCode ? String(r.statusCode) : 'timeout/DNS',
-                r.error ? r.error.slice(0, 80) : '—',
+                r.error ? r.error.slice(0, 80).replace(/\s\S*$/, '…') : '—',
             ])),
             '',
         ].join('\n');
@@ -237,16 +237,16 @@ export function formatReport(results, scanDate, totalScanned, elapsedSec) {
 // Exit code is always 0 — dead connectors are informational, not build-blocking.
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-    const jsonMode  = process.argv.includes('--output=json');
-    const scanDate  = new Date().toISOString().slice(0, 10);
+    const jsonMode = process.argv.includes('--output=json');
+    const scanDate = new Date().toISOString().slice(0, 10);
     const scanStart = Date.now();
 
     console.error(`[dead-link-scanner] Starting scan (concurrency=${CONCURRENCY}, timeout=${TIMEOUT_MS}ms) …`);
 
-    const connectors   = extractConnectorUrls().filter(c => c.url);
+    const connectors = extractConnectorUrls().filter(c => c.url);
     const totalScanned = connectors.length;
-    const results      = await scanDeadLinks(connectors);
-    const elapsedSec   = (Date.now() - scanStart) / 1000;
+    const results = await scanDeadLinks(connectors);
+    const elapsedSec = (Date.now() - scanStart) / 1000;
     const markdownBody = formatReport(results, scanDate, totalScanned, elapsedSec);
 
     if (jsonMode) {
