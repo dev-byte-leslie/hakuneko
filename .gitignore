@@ -53,6 +53,9 @@ cache
 # Smoke test reports
 tools/smoke-test/reports/
 
+# Dead link scanner reports
+tools/connector-gen/reports/
+
 # Connector gen
 .claude-flow/
 
