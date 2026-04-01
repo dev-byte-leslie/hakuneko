@@ -48,7 +48,8 @@
     "test:e2e": "jest --color --reporters=default --reporters=jest-junit --testPathPattern=/src/__tests__",
     "test:smoke:tier1": "cd tools/smoke-test && bun run tier1",
     "test:smoke:tier2": "cd tools/smoke-test && bun run tier2",
-    "test:smoke:tier3": "cd tools/smoke-test && bun run tier3"
+    "test:smoke:tier3": "cd tools/smoke-test && bun run tier3",
+    "scan:dead-links": "cd tools/connector-gen && bun run scan"
   },
   "jest": {
     "testPathIgnorePatterns": [

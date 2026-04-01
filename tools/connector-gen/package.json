@@ -12,6 +12,7 @@
     "test": "bun test",
     "generate": "bun run cli.mjs generate",
     "fingerprint": "bun run cli.mjs fingerprint",
-    "validate": "bun run cli.mjs validate"
+    "validate": "bun run cli.mjs validate",
+    "scan": "bun run lib/dead-link-scanner.mjs"
   }
 }
