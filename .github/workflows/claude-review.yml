@@ -5,7 +5,7 @@ name: Claude PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened]
   workflow_dispatch:
     inputs:
       pr_number:
