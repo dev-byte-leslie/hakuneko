@@ -25,11 +25,9 @@ export default class TestSite extends WordPressMadara {
 `;
 
 const SYNTAX_ERROR_SOURCE = `
-import WordPressMadara from './templates/WordPressMadara.mjs'
-
-export default class BrokenSite extends WordPressMadara {
+export default class BrokenSite {
     constructor() {
-        super()
+        this.id = 'broken';
         // Missing closing brace
 `;
 

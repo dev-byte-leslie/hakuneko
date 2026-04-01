@@ -131,6 +131,16 @@ async function _checkImport(source) {
         mkdirSync(tmpDir, { recursive: true });
         writeFileSync(tmpFile, source, 'utf8');
 
+        // Pre-check for syntax errors before dynamic import.
+        // external: ['*'] skips module resolution so only parse errors surface.
+        const buildResult = await Bun.build({ entrypoints: [tmpFile], external: ['*'] });
+        if (!buildResult.success) {
+            const errors = buildResult.logs.filter(l => l.level === 'error');
+            if (errors.length > 0) {
+                return { name: 'import', passed: false, message: errors.map(e => e.message).join('; ') };
+            }
+        }
+
         // Install engine mocks (idempotent)
         const { installMocks } = await import(`${SMOKE_TEST_LIB}/engine-mock.mjs`);
         installMocks();
