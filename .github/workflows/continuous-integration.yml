@@ -13,9 +13,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # linux (Ubuntu) removed: Linux tests are currently broken.
-  # macOS and Windows were already removed (Electron 8.5.5 issues).
-  # Re-add all platform jobs after Electron upgrade.
+  integration:
+    name: Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-14]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: xvfb-run --auto-servernum npx jest --runInBand --forceExit --testPathIgnorePatterns="e2e|connector-gen"
+        timeout-minutes: 10
+        env:
+          DISPLAY: ':99.0'
+          ELECTRON_DISABLE_SANDBOX: 1
+
+      - name: Run tests (non-Linux)
+        if: runner.os != 'Linux'
+        shell: bash
+        run: npx jest --runInBand --forceExit --testPathIgnorePatterns="e2e|connector-gen"
+        timeout-minutes: 10
+
+      - name: Security audit
+        run: npm audit --audit-level=high || true
 
   connector-gen-tests:
     name: Connector Gen Tests

@@ -16,15 +16,15 @@
     "@logtrine/logtrine": "1.1.2",
     "asar": "3.2.0",
     "discord-rpc": "4.0.1",
-    "electron": "8.5.5",
+    "electron": "33.4.11",
     "eslint": "^8.57.0",
     "fs-extra": "11.3.4",
     "innosetup-compiler": "6.3.1",
     "jest": "30.3.0",
+    "jest-circus": "30.3.0",
     "jest-junit": "16.0.0",
     "jszip": "3.10.1",
     "polymer-build": "3.1.4",
-    "puppeteer-core": "24.39.1",
     "rcedit": "5.0.2",
     "win-7zip": "0.1.1"
   },
@@ -56,5 +56,8 @@
       "/node_modules/",
       "<rootDir>/tools/"
     ]
+  },
+  "dependencies": {
+    "puppeteer-core": "3.3.0"
   }
 }

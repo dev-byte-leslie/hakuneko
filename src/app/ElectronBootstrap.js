@@ -7,11 +7,62 @@ const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
 const trayTooltipMinimize = 'HakuNeko\nClick to hide window';
 const trayTooltipRestore = 'HakuNeko\nClick to show window';
 
+/**
+ * Generate a random Chrome User-Agent string.
+ * Mirrors HeaderGenerator.randomUA() from the renderer process.
+ */
+function _randomChromeUA() {
+    const rn = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const rd = (items) => items[Math.floor(Math.random() * items.length)];
+    const os = rd([
+        'X11; Linux' + rd([' i386', ' i686', ' amd64', ' x86_64']),
+        'Macintosh; Intel Mac OS X ' + [rd(['10']), rd(['8', '9', '10', '11', '12', '13']), rd(['0', '1', '2', '3', '4', '5'])].join(rd(['_', '.'])),
+        'Windows NT ' + rd(['5.0', '5.1', '6.0', '6.1', '6.2', '10.0']) + rd(['', '; WOW64', '; Win64; x64']),
+    ]);
+    const ver = rn(120, 122) + '.' + rn(0, 99) + '.' + rn(0, 9999) + '.' + rn(0, 999);
+    return 'Mozilla/5.0 (' + os + ') AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' + ver + ' Safari/537.36';
+}
+
+/**
+ * Merge two semicolon-delimited cookie strings, with newer values winning.
+ * Mirrors Cookie.merge() from the renderer process.
+ */
+function _mergeCookies(existing, additional) {
+    const parse = (str) => {
+        const map = {};
+        (str || '').split(';').filter(c => c.trim()).forEach(c => {
+            const pair = c.split('=');
+            const key = pair.shift().trim();
+            map[key] = pair.join('=').trim();
+        });
+        return map;
+    };
+    const merged = Object.assign(parse(existing), parse(additional));
+    return Object.keys(merged)
+        .filter(k => merged[k] !== 'EXPIRED')
+        .map(k => k + '=' + merged[k])
+        .join('; ');
+}
+
+/**
+ * Ensure SameSite=None on all Set-Cookie headers for cross-site cookie support.
+ * Mirrors Cookie.applyCrossSiteCookies() from the renderer process.
+ */
+function _applyCrossSiteCookies(headers) {
+    let cookies = headers['set-cookie'] || headers['Set-Cookie'];
+    if (!cookies) return;
+    if (!Array.isArray(cookies)) cookies = [cookies];
+    for (let i in cookies) {
+        cookies[i] = [...cookies[i].split(';').map(p => p.trim()).filter(p => !/^SameSite=/i.test(p)), 'SameSite=None'].join('; ');
+    }
+}
+
 module.exports = class ElectronBootstrap {
 
     constructor(configuration, logger) {
         this._logger = logger || new ConsoleLogger(ConsoleLogger.LEVEL.Warn);
         this._configuration = configuration;
+        this._userAgent = _randomChromeUA();
         this._window = null;
         this._schemes = [
             {
@@ -312,7 +363,6 @@ module.exports = class ElectronBootstrap {
             show: false,
             backgroundColor: '#f8f8f8',
             webPreferences: {
-                experimentalFeatures: true,
                 nodeIntegration: true, // TODO(HAKU-0004): flip to false after migrating require('fs'/'path'/'os') in Storage.mjs, Settings.mjs, DiscordPresence.mjs to IPC handlers
                 contextIsolation: true,
                 webSecurity: true,
@@ -430,40 +480,120 @@ module.exports = class ElectronBootstrap {
     }
 
     _setupBeforeSendHeaders() {
-        // inject headers before a request is made (call the handler in the webapp to do the dirty work)
-        electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, async (details, callback) => {
+        // Synchronous header manipulation (moved from renderer Request.mjs for Electron 33+ compat)
+        electron.session.defaultSession.webRequest.onBeforeSendHeaders(urlFilterAll, (details, callback) => {
             try {
-                let result = await this._ipcSend('on-before-send-headers', details);
-                callback({
-                    cancel: false,
-                    requestHeaders: result.requestHeaders
-                });
+                const h = details.requestHeaders;
+
+                // Remove DevTools headers
+                for (let key in h) {
+                    if (key.startsWith('X-DevTools')) delete h[key];
+                }
+
+                // x-host → Host
+                if (h['x-host']) h['Host'] = h['x-host'];
+                delete h['x-host'];
+
+                // Replace Electron user-agent with random Chrome UA
+                if (h['User-Agent'] && h['User-Agent'].toLowerCase().includes('electron')) {
+                    h['User-Agent'] = this._userAgent;
+                }
+                // Custom user-agent override
+                if (h['x-user-agent']) {
+                    h['User-Agent'] = h['x-user-agent'];
+                    delete h['x-user-agent'];
+                }
+
+                // Disable caching
+                h['Cache-Control'] = 'no-cache';
+                h['Pragma'] = 'no-cache';
+
+                // Referer — never overwrite for CloudFlare challenge URLs
+                let uri = new URL(details.url);
+                if (!/(ch[kl]_jschl|challenge-platform)/i.test(uri.href)) {
+                    if (uri.hostname.includes('.mcloud.to')) {
+                        h['Referer'] = uri.href;
+                    } else if (h['x-referer']) {
+                        h['Referer'] = h['x-referer'];
+                    }
+                }
+                delete h['x-referer'];
+
+                // Origin
+                if (h['x-origin']) h['Origin'] = h['x-origin'];
+                delete h['x-origin'];
+
+                // Merge cookies
+                if (h['x-cookie']) {
+                    h['Cookie'] = _mergeCookies(h['Cookie'], h['x-cookie']);
+                }
+                delete h['x-cookie'];
+
+                // Sec-Fetch-* headers
+                if (h['x-sec-fetch-dest']) h['Sec-Fetch-Dest'] = h['x-sec-fetch-dest'];
+                delete h['x-sec-fetch-dest'];
+                if (h['x-sec-fetch-mode']) h['Sec-Fetch-Mode'] = h['x-sec-fetch-mode'];
+                delete h['x-sec-fetch-mode'];
+                if (h['x-sec-fetch-site']) h['Sec-Fetch-Site'] = h['x-sec-fetch-site'];
+                delete h['x-sec-fetch-site'];
+                if (h['x-sec-ch-ua']) h['sec-ch-ua'] = h['x-sec-ch-ua'];
+                delete h['x-sec-ch-ua'];
+
+                // Imgur image accept fix
+                if (/i\.imgur\.com/i.test(uri.hostname) || /\.(jpg|jpeg|png|gif|webp)/i.test(uri.pathname)) {
+                    h['Accept'] = 'image/webp,image/apng,image/*,*/*';
+                    delete h['accept'];
+                }
+
+                // Normalize lowercase accept
+                if (h['accept']) {
+                    h['Accept'] = h['accept'];
+                    delete h['accept'];
+                }
+
+                callback({ cancel: false, requestHeaders: h });
             } catch(error) {
                 this._logger.warn(error);
-                callback({
-                    cancel: false,
-                    requestHeaders: details.requestHeaders
-                });
+                callback({ cancel: false, requestHeaders: details.requestHeaders });
             }
         });
     }
 
     _setupHeadersReceived() {
-        electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, async (details, callback) => {
+        // Synchronous response header manipulation (moved from renderer Request.mjs for Electron 33+ compat)
+        electron.session.defaultSession.webRequest.onHeadersReceived(urlFilterAll, (details, callback) => {
             try {
-                let result = await this._ipcSend('on-headers-received', details);
-                callback({
-                    cancel: false,
-                    responseHeaders: result.responseHeaders
-                    // statusLine
-                });
+                const rh = details.responseHeaders;
+                let uri = new URL(details.url);
+
+                // X-Redirect → Location (some streaming sites use non-standard redirect header)
+                let redirect = rh['X-Redirect'] || rh['x-redirect'];
+                if (redirect) rh['Location'] = redirect;
+
+                // mp4upload: expose Content-Length for CORS
+                if (uri.hostname.includes('mp4upload')) {
+                    rh['Access-Control-Expose-Headers'] = ['Content-Length'];
+                }
+
+                // Webtoons: inject agn2 cookie from query param
+                if (uri.hostname.includes('webtoons') && uri.searchParams.get('title_no')) {
+                    rh['Set-Cookie'] = `agn2=${uri.searchParams.get('title_no')}; Domain=${uri.hostname}; Path=/`;
+                }
+
+                // Comikey: strip CSP on reader pages
+                if (uri.hostname.includes('comikey') && uri.pathname.includes('/read/')) {
+                    delete rh['content-security-policy'];
+                }
+
+                // Ensure SameSite=None on cross-site cookies
+                if (rh['set-cookie'] || rh['Set-Cookie']) {
+                    _applyCrossSiteCookies(rh);
+                }
+
+                callback({ cancel: false, responseHeaders: rh });
             } catch(error) {
                 this._logger.warn(error);
-                callback({
-                    cancel: false,
-                    responseHeaders: details.responseHeaders
-                    // statusLine
-                });
+                callback({ cancel: false, responseHeaders: details.responseHeaders });
             }
         });
     }
@@ -514,14 +644,6 @@ module.exports = class ElectronBootstrap {
         ipcMain.handle('hakuneko:app:getPath', (event, name) => {
             return app.getPath(name);
         });
-        ipcMain.on('hakuneko:app:getPathSync', (event, name) => {
-            try {
-                event.returnValue = app.getPath(name);
-            } catch (e) {
-                event.returnValue = null;
-            }
-        });
-
         // Shell
         ipcMain.handle('hakuneko:shell:showItemInFolder', (event, fullPath) => {
             shell.showItemInFolder(fullPath);
@@ -559,9 +681,7 @@ module.exports = class ElectronBootstrap {
 
         // Session proxy
         ipcMain.handle('hakuneko:session:setProxy', (event, config) => {
-            return new Promise(resolve => {
-                session.defaultSession.setProxy(config, resolve);
-            });
+            return session.defaultSession.setProxy(config);
         });
 
         // Browser fetch operations (replaces electron.remote.BrowserWindow usage in Request.mjs)

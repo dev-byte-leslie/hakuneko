@@ -19,8 +19,6 @@ const hakunekoAPI = {
     },
     app: {
         getPath: (name) => ipcRenderer.invoke('hakuneko:app:getPath', name),
-        // Synchronous path getter for use in constructors (uses sendSync)
-        getPathSync: (name) => ipcRenderer.sendSync('hakuneko:app:getPathSync', name),
     },
     shell: {
         showItemInFolder: (fullPath) => ipcRenderer.invoke('hakuneko:shell:showItemInFolder', fullPath),
