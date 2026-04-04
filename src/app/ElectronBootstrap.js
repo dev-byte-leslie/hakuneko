@@ -16,8 +16,8 @@ function _randomChromeUA() {
     const rd = (items) => items[Math.floor(Math.random() * items.length)];
     const os = rd([
         'X11; Linux' + rd([' i386', ' i686', ' amd64', ' x86_64']),
-        'Macintosh; Intel Mac OS X ' + [rd(['10']), rd(['8','9','10','11','12','13']), rd(['0','1','2','3','4','5'])].join(rd(['_','.'])),
-        'Windows NT ' + rd(['5.0','5.1','6.0','6.1','6.2','10.0']) + rd(['', '; WOW64', '; Win64; x64']),
+        'Macintosh; Intel Mac OS X ' + [rd(['10']), rd(['8', '9', '10', '11', '12', '13']), rd(['0', '1', '2', '3', '4', '5'])].join(rd(['_', '.'])),
+        'Windows NT ' + rd(['5.0', '5.1', '6.0', '6.1', '6.2', '10.0']) + rd(['', '; WOW64', '; Win64; x64']),
     ]);
     const ver = rn(120, 122) + '.' + rn(0, 99) + '.' + rn(0, 9999) + '.' + rn(0, 999);
     return 'Mozilla/5.0 (' + os + ') AppleWebKit/537.36 (KHTML, like Gecko) Chrome/' + ver + ' Safari/537.36';
