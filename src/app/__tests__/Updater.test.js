@@ -133,7 +133,7 @@ class TestFixture {
      *
      */
     serverStop() {
-        this._server.close();
+        return new Promise(resolve => this._server.close(resolve));
     }
 }
 
@@ -151,7 +151,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), "111111");
             assert.equal(fs.readFileSync(fixture.index.file, 'utf8'), "OK");
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -163,7 +163,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -175,7 +175,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.emptyMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -188,7 +188,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), '111111');
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -201,7 +201,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), '000000');
             assert.equal(fs.readFileSync(fixture.dummy.file, 'utf8'), fixture.dummy.content);
             assert.equal(fs.existsSync(fixture.index.file), false);
@@ -210,7 +210,7 @@ describe('Updater', function () {
 
         it('should keep cache when cache is non-empty and server has error', async () => {
             fixture.createMockDirectory();
-            fixture.serverStop();
+            await fixture.serverStop();
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), fixture.version.content);
@@ -224,7 +224,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.archiveMock.signature, fixture.archiveMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.readFileSync(fixture.version.file, 'utf8'), "111111");
             assert.equal(fs.readFileSync(fixture.index.file, 'utf8'), "OK");
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -236,7 +236,7 @@ describe('Updater', function () {
             fixture.serverStart(fixture.emptyMock.signature, fixture.emptyMock.archive);
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
-            fixture.serverStop();
+            await fixture.serverStop();
             assert.equal(fs.existsSync(fixture.version.file), false);
             assert.equal(fs.existsSync(fixture.index.file), false);
             assert.equal(fs.existsSync(fixture.dummy.file), false);
@@ -245,7 +245,7 @@ describe('Updater', function () {
 
         it('should keep (empty) when cache is empty and server has error', async () => {
             fixture.deleteMockDirectory();
-            fixture.serverStop();
+            await fixture.serverStop();
             let testee = fixture.createTestee();
             await testee.updateCache(publicKey);
             assert.equal(fs.existsSync(fixture.version.file), false);
