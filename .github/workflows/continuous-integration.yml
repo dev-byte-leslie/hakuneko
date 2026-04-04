@@ -39,7 +39,7 @@ jobs:
       - name: Run tests (Linux)
         if: runner.os == 'Linux'
         shell: bash
-        run: xvfb-run --auto-servernum npx jest --forceExit --testPathIgnorePatterns="e2e|connector-gen"
+        run: xvfb-run --auto-servernum npx jest --runInBand --forceExit --testPathIgnorePatterns="e2e|connector-gen"
         timeout-minutes: 10
         env:
           DISPLAY: ':99.0'
@@ -48,7 +48,7 @@ jobs:
       - name: Run tests (non-Linux)
         if: runner.os != 'Linux'
         shell: bash
-        run: npx jest --forceExit --testPathIgnorePatterns="e2e|connector-gen"
+        run: npx jest --runInBand --forceExit --testPathIgnorePatterns="e2e|connector-gen"
         timeout-minutes: 10
 
       - name: Security audit
