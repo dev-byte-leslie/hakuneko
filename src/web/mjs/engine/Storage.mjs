@@ -25,8 +25,7 @@ export default class Storage {
         // TODO: Use fs-extra which provides more convenience functions (e.g. delete recursive)
         this.fs = require('fs');
         this.path = require('path');
-        let userDataPath = window.hakunekoAPI.app.getPathSync('userData') || '.';
-        this.config = this.path.join(userDataPath, 'hakuneko.');
+        this.config = this.path.join('.', 'hakuneko.');
         this.temp = this.path.join(require('os').tmpdir(), 'hakuneko');
         this._createDirectoryChain(this.temp);
 
@@ -40,6 +39,12 @@ export default class Storage {
                 ';': '%3B'
             }
         };
+    }
+
+    /** Resolve async paths that cannot be fetched in the constructor. */
+    async initialize() {
+        let userDataPath = await window.hakunekoAPI.app.getPath('userData') || '.';
+        this.config = this.path.join(userDataPath, 'hakuneko.');
     }
 
     /**

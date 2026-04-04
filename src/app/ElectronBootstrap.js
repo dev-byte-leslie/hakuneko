@@ -312,7 +312,6 @@ module.exports = class ElectronBootstrap {
             show: false,
             backgroundColor: '#f8f8f8',
             webPreferences: {
-                experimentalFeatures: true,
                 nodeIntegration: true, // TODO(HAKU-0004): flip to false after migrating require('fs'/'path'/'os') in Storage.mjs, Settings.mjs, DiscordPresence.mjs to IPC handlers
                 contextIsolation: true,
                 webSecurity: true,
@@ -514,14 +513,6 @@ module.exports = class ElectronBootstrap {
         ipcMain.handle('hakuneko:app:getPath', (event, name) => {
             return app.getPath(name);
         });
-        ipcMain.on('hakuneko:app:getPathSync', (event, name) => {
-            try {
-                event.returnValue = app.getPath(name);
-            } catch (e) {
-                event.returnValue = null;
-            }
-        });
-
         // Shell
         ipcMain.handle('hakuneko:shell:showItemInFolder', (event, fullPath) => {
             shell.showItemInFolder(fullPath);

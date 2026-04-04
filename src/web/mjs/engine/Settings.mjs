@@ -38,14 +38,7 @@ export default class Settings extends EventTarget {
     constructor() {
         super();
         let path = require('path');
-        let docs = undefined;
-        try {
-            // on some circumstances the documents directory might not be found by electron
-            docs = window.hakunekoAPI.app.getPathSync('documents');
-            if (!docs) docs = '.';
-        } catch (e) {
-            docs = '.';
-        }
+        let docs = '.';
 
         this.frontend = {
             label: 'Frontend ⁽¹⁾',
@@ -83,7 +76,7 @@ export default class Settings extends EventTarget {
                 'This setting has no effect when the application is in portable mode!'
             ].join('\n'),
             input: process.env.HAKUNEKO_PORTABLE ? types.disabled : types.directory,
-            value: window.hakunekoAPI.app.getPathSync('userData') || '.'
+            value: '.'
         };
 
         this.useSubdirectory = {
@@ -282,6 +275,23 @@ export default class Settings extends EventTarget {
             ],
             value: 'Light',
         };
+    }
+
+    /** Resolve async paths that cannot be fetched in the constructor. */
+    async initialize() {
+        let path = require('path');
+        try {
+            let docs = await window.hakunekoAPI.app.getPath('documents');
+            if (docs) {
+                this.baseDirectory.value = path.join(docs, 'Mangas');
+            }
+        } catch (_) {
+            // documents directory not found — keep default
+        }
+        let userData = await window.hakunekoAPI.app.getPath('userData');
+        if (userData) {
+            this.bookmarkDirectory.value = userData;
+        }
     }
 
     NovelColorProfile() {
