@@ -54,6 +54,8 @@ export default class HakuNeko {
     }
 
     async initialize() {
+        await this._settings.initialize();
+        await this._storage.initialize();
         await this._connectors.initialize();
     }
 
