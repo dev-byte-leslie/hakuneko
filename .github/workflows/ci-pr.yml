@@ -31,11 +31,12 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-optional
+        run: npm install
 
       - name: Run tests (Linux)
         if: runner.os == 'Linux'
-        run: xvfb-run --auto-servernum npx jest --forceExit --testPathIgnorePatterns='e2e|connector-gen'
+        shell: bash
+        run: xvfb-run --auto-servernum npx jest --forceExit --testPathIgnorePatterns="e2e|connector-gen"
         timeout-minutes: 10
         env:
           DISPLAY: ':99.0'
@@ -43,7 +44,8 @@ jobs:
 
       - name: Run tests (non-Linux)
         if: runner.os != 'Linux'
-        run: npx jest --forceExit --testPathIgnorePatterns='e2e|connector-gen'
+        shell: bash
+        run: npx jest --forceExit --testPathIgnorePatterns="e2e|connector-gen"
         timeout-minutes: 10
 
       - name: Security audit
