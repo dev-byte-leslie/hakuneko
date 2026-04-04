@@ -1,14 +1,10 @@
 import HeaderGenerator from './HeaderGenerator.mjs';
-import Cookie from './Cookie.mjs';
 
 export default class Request {
 
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
     constructor(ipc, settings) {
         this.userAgent = HeaderGenerator.randomUA();
-
-        ipc.listen('on-before-send-headers', this.onBeforeSendHeadersHandler.bind(this));
-        ipc.listen('on-headers-received', this.onHeadersReceivedHandler.bind(this));
 
         this._settings = settings;
         this._settings.addEventListener('loaded', this._onSettingsChanged.bind(this));
@@ -148,138 +144,4 @@ export default class Request {
         );
     }
 
-    /**
-     * Provide headers for the electron main process that shall be modified before every BrowserWindow request is send.
-     */
-    async onBeforeSendHeadersHandler(details) {
-        let uri = new URL(details.url);
-
-        // Remove accidently added headers from opened developer console
-        for (let header in details.requestHeaders) {
-            if (header.startsWith('X-DevTools')) {
-                delete details.requestHeaders[header];
-            }
-        }
-
-        // Overwrite the Host header with the one provided by the connector
-        if (details.requestHeaders['x-host']) {
-            details.requestHeaders['Host'] = details.requestHeaders['x-host'];
-        }
-        delete details.requestHeaders['x-host'];
-
-        // Always overwrite the electron user agent
-        if (details.requestHeaders['User-Agent'].toLowerCase().includes('electron')) {
-            details.requestHeaders['User-Agent'] = this.userAgent;
-        }
-        // If a custom user agent is set use this instead
-        if (details.requestHeaders['x-user-agent']) {
-            details.requestHeaders['User-Agent'] = details.requestHeaders['x-user-agent'];
-            delete details.requestHeaders['x-user-agent'];
-        }
-
-        // Prevent loading anything from cache (espacially CloudFlare protection)
-        details.requestHeaders['Cache-Control'] = details.requestHeaders['no-cache'];
-        details.requestHeaders['Pragma'] = details.requestHeaders['no-cache'];
-
-        /*
-         * Overwrite the Referer header, but
-         * NEVER overwrite the referer for CloudFlare's DDoS protection to prevent infinite redirects!
-         */
-        if (!/(ch[kl]_jschl|challenge-platform)/i.test(uri.href)) {
-            if (uri.hostname.includes('.mcloud.to')) {
-                details.requestHeaders['Referer'] = uri.href;
-            } else if (details.requestHeaders['x-referer']) {
-                details.requestHeaders['Referer'] = details.requestHeaders['x-referer'];
-            }
-        }
-        delete details.requestHeaders['x-referer'];
-
-        // Overwrite the Origin header
-        if (details.requestHeaders['x-origin']) {
-            details.requestHeaders['Origin'] = details.requestHeaders['x-origin'];
-        }
-        delete details.requestHeaders['x-origin'];
-
-        // Append Cookie header
-        if (details.requestHeaders['x-cookie']) {
-            let cookiesORG = new Cookie(details.requestHeaders['Cookie']);
-            let cookiesNEW = new Cookie(details.requestHeaders['x-cookie']);
-            details.requestHeaders['Cookie'] = cookiesORG.merge(cookiesNEW).toString();
-        }
-        delete details.requestHeaders['x-cookie'];
-
-        //
-        if (details.requestHeaders['x-sec-fetch-dest']) {
-            details.requestHeaders['Sec-Fetch-Dest'] = details.requestHeaders['x-sec-fetch-dest'];
-        }
-        delete details.requestHeaders['x-sec-fetch-dest'];
-
-        //
-        if (details.requestHeaders['x-sec-fetch-mode']) {
-            details.requestHeaders['Sec-Fetch-Mode'] = details.requestHeaders['x-sec-fetch-mode'];
-        }
-        delete details.requestHeaders['x-sec-fetch-mode'];
-
-        //
-        if (details.requestHeaders['x-sec-fetch-site']) {
-            details.requestHeaders['Sec-Fetch-Site'] = details.requestHeaders['x-sec-fetch-site'];
-        }
-        delete details.requestHeaders['x-sec-fetch-site'];
-
-        //
-        if (details.requestHeaders['x-sec-ch-ua']) {
-            details.requestHeaders['sec-ch-ua'] = details.requestHeaders['x-sec-ch-ua'];
-        }
-        delete details.requestHeaders['x-sec-ch-ua'];
-
-        // HACK: Imgur does not support request with accept types containing other mimes then images
-        //       => overwrite accept header to prevent redirection to HTML notice
-        if (/i\.imgur\.com/i.test(uri.hostname) || /\.(jpg|jpeg|png|gif|webp)/i.test(uri.pathname)) {
-            details.requestHeaders['Accept'] = 'image/webp,image/apng,image/*,*/*';
-            delete details.requestHeaders['accept'];
-        }
-
-        // Avoid detection of HakuNeko through lowercase accept header
-        if (details.requestHeaders['accept']) {
-            details.requestHeaders['Accept'] = details.requestHeaders['accept'];
-            delete details.requestHeaders['accept'];
-        }
-
-        return details;
-    }
-
-    /**
-     * Provide headers for the electron main process that shall be modified before every BrowserWindow response is received.
-     */
-    async onHeadersReceivedHandler(details) {
-        let uri = new URL(details.url);
-
-        /*
-         * Some video sreaming sites (Streamango, OpenVideo) using 'X-Redirect' header instead of 'Location' header,
-         * but fetch API only follows 'Location' header redirects => assign redirect to location
-         */
-        let redirect = details.responseHeaders['X-Redirect'] || details.responseHeaders['x-redirect'];
-        if (redirect) {
-            details.responseHeaders['Location'] = redirect;
-        }
-        if (uri.hostname.includes('mp4upload')) {
-            /*
-             *details.responseHeaders['Access-Control-Allow-Origin'] = '*';
-             *details.responseHeaders['Access-Control-Allow-Methods'] = 'HEAD, GET';
-             */
-            details.responseHeaders['Access-Control-Expose-Headers'] = ['Content-Length'];
-        }
-        if (uri.hostname.includes('webtoons') && uri.searchParams.get('title_no')) {
-            details.responseHeaders['Set-Cookie'] = `agn2=${uri.searchParams.get('title_no')}; Domain=${uri.hostname}; Path=/`;
-        }
-        if(uri.hostname.includes('comikey') && uri.pathname.includes('/read/')) {
-            delete details.responseHeaders['content-security-policy'];
-        }
-
-        if(details.responseHeaders['set-cookie'] || details.responseHeaders['Set-Cookie']) {
-            Cookie.applyCrossSiteCookies(details.responseHeaders);
-        }
-
-        return details;
-    }
 }
