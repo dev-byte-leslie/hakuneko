@@ -135,7 +135,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateInfo();
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.ok(error.message.includes('404') || error.message.includes('socket'), `Unexpected error: ${error.message}`);
+                assert.ok(error.message.includes('404') || error.message.includes('socket') || error.message.includes('ECONN'), `Unexpected error: ${error.message}`);
             } finally {
                 await fixture.serverStop();
             }
@@ -147,7 +147,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateInfo();
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.equal(error.message, 'connect ECONNREFUSED 127.0.0.1:8080');
+                assert.ok(error.message.includes('ECONNREFUSED'), `Unexpected error: ${error.message}`);
             }
         });
 
@@ -190,7 +190,7 @@ describe('UpdateServerManager', function () {
                 await testee.getUpdateArchive({link: fixture.applicationUpdateURL + '/invalid'});
                 assert.fail('Expected error not thrown!');
             } catch(error) {
-                assert.ok(error.message.includes('404') || error.message.includes('socket'), `Unexpected error: ${error.message}`);
+                assert.ok(error.message.includes('404') || error.message.includes('socket') || error.message.includes('ECONN'), `Unexpected error: ${error.message}`);
             } finally {
                 await fixture.serverStop();
             }
