@@ -559,9 +559,7 @@ module.exports = class ElectronBootstrap {
 
         // Session proxy
         ipcMain.handle('hakuneko:session:setProxy', (event, config) => {
-            return new Promise(resolve => {
-                session.defaultSession.setProxy(config, resolve);
-            });
+            return session.defaultSession.setProxy(config);
         });
 
         // Browser fetch operations (replaces electron.remote.BrowserWindow usage in Request.mjs)
