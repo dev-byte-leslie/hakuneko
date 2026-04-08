@@ -174,50 +174,67 @@ export async function scanDeadLinks(connectors) {
  * @returns {string}
  */
 export function formatReport(results, scanDate, totalScanned, elapsedSec) {
+    const MAX_BODY_CHARS = 60_000;
+    const MAX_ROWS_PER_SECTION = 150;
+
     const dead = results.filter(r => r.status === 'dead');
     const redirected = results.filter(r => r.status === 'redirected');
     const cloudflare = results.filter(r => r.status === 'cloudflare');
 
     const tableRow = (cols) => `| ${cols.join(' | ')} |`;
 
-    const deadSection = dead.length === 0
-        ? '_None_\n'
-        : [
-            tableRow(['Connector', 'URL', 'Status', 'Error']),
-            tableRow(['---', '---', '---', '---']),
-            ...dead.map(r => tableRow([
-                r.label ?? r.id ?? '—',
-                r.url,
-                r.statusCode ? String(r.statusCode) : 'timeout/DNS',
-                r.error ? r.error.slice(0, 80).replace(/\s\S*$/, '…') : '—',
-            ])),
-            '',
-        ].join('\n');
+    /**
+     * Build a markdown table section with a row cap.
+     * @param {ScanResult[]} items
+     * @param {string[]} headerCols
+     * @param {function(ScanResult): string[]} rowMapper
+     * @returns {string}
+     */
+    function buildSection(items, headerCols, rowMapper) {
+        if (items.length === 0) return '_None_\n';
+        const shown = items.slice(0, MAX_ROWS_PER_SECTION);
+        const omitted = items.length - shown.length;
+        const lines = [
+            tableRow(headerCols),
+            tableRow(headerCols.map(() => '---')),
+            ...shown.map(r => tableRow(rowMapper(r))),
+        ];
+        if (omitted > 0) {
+            lines.push('', `_…and ${omitted} more (see artifact for full list)_`);
+        }
+        lines.push('');
+        return lines.join('\n');
+    }
 
-    const redirectedSection = redirected.length === 0
-        ? '_None_\n'
-        : [
-            tableRow(['Connector', 'Original URL', 'Redirected To', 'Status']),
-            tableRow(['---', '---', '---', '---']),
-            ...redirected.map(r => tableRow([
-                r.label ?? r.id ?? '—',
-                r.url,
-                r.redirectUrl ?? '—',
-                r.statusCode ? String(r.statusCode) : '—',
-            ])),
-            '',
-        ].join('\n');
+    const deadSection = buildSection(
+        dead,
+        ['Connector', 'URL', 'Status', 'Error'],
+        r => [
+            r.label ?? r.id ?? '—',
+            r.url,
+            r.statusCode ? String(r.statusCode) : 'timeout/DNS',
+            r.error ? r.error.slice(0, 80).replace(/\s\S*$/, '…') : '—',
+        ],
+    );
 
-    const cfSection = cloudflare.length === 0
-        ? '_None_\n'
-        : [
-            tableRow(['Connector', 'URL']),
-            tableRow(['---', '---']),
-            ...cloudflare.map(r => tableRow([r.label ?? r.id ?? '—', r.url])),
-            '',
-        ].join('\n');
+    const redirectedSection = buildSection(
+        redirected,
+        ['Connector', 'Original URL', 'Redirected To', 'Status'],
+        r => [
+            r.label ?? r.id ?? '—',
+            r.url,
+            r.redirectUrl ?? '—',
+            r.statusCode ? String(r.statusCode) : '—',
+        ],
+    );
 
-    return [
+    const cfSection = buildSection(
+        cloudflare,
+        ['Connector', 'URL'],
+        r => [r.label ?? r.id ?? '—', r.url],
+    );
+
+    let body = [
         `## Dead Link Scan — ${scanDate}`,
         '',
         `Scanned **${totalScanned}** connectors. Found **${results.length}** issues.`,
@@ -230,6 +247,13 @@ export function formatReport(results, scanDate, totalScanned, elapsedSec) {
         cfSection,
         `_Scan completed in ${elapsedSec.toFixed(1)}s. CloudFlare-protected connectors may still be alive — listed for awareness only._`,
     ].join('\n');
+
+    if (body.length > MAX_BODY_CHARS) {
+        const notice = '\n\n_⚠️ Report truncated — see the uploaded JSON artifact for the full list._';
+        body = body.slice(0, MAX_BODY_CHARS - notice.length) + notice;
+    }
+
+    return body;
 }
 
 // ─── CLI entry point ─────────────────────────────────────────────────────────
