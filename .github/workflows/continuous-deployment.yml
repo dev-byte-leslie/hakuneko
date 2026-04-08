@@ -29,15 +29,9 @@ jobs:
       - name: Install NodeJS
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
         timeout-minutes: 5
-
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.npm
-          key: npm-${{ runner.os }}-${{ hashFiles('bun.lock', 'src/app/bun.lock') }}
-          restore-keys: npm-${{ runner.os }}-
 
       - name: Install NPM Packages
         timeout-minutes: 10
@@ -45,8 +39,7 @@ jobs:
 
       - name: Security Audit
         timeout-minutes: 5
-        continue-on-error: true
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=high || true
 
       - name: Lint
         timeout-minutes: 10
