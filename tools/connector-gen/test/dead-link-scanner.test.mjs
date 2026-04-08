@@ -216,6 +216,31 @@ describe('formatReport', () => {
         expect(cell.at(-2)).not.toBe(' ');
     });
 
+    it('stays under 65,536 chars with 500+ results per category', () => {
+        const makeBulk = (status, count) => Array.from({ length: count }, (_, i) => ({
+            id: `${status}-${i}`,
+            label: `${status} Connector ${i}`,
+            url: `https://${status}-site-${i}.example.com/very/long/path/segment`,
+            status,
+            statusCode: status === 'dead' ? 404 : status === 'cloudflare' ? 403 : 200,
+            redirectUrl: status === 'redirected' ? `https://new-domain-${i}.example.com/` : null,
+            error: status === 'dead' ? 'connect ECONNREFUSED 127.0.0.1:443' : null,
+            durationMs: 100,
+        }));
+
+        const results = [
+            ...makeBulk('dead', 500),
+            ...makeBulk('redirected', 500),
+            ...makeBulk('cloudflare', 500),
+        ];
+
+        const md = formatReport(results, '2026-04-07', 1500, 120.0);
+        expect(md.length).toBeLessThan(65_536);
+        // Verify truncation notice appears for at least one section
+        expect(md).toContain('…and');
+        expect(md).toContain('see artifact for full list');
+    });
+
     it('uses em-dash when error is null', () => {
         const results = [{
             id: 'x', label: 'X', url: 'https://x.com',
