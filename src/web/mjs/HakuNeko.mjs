@@ -1,4 +1,3 @@
-import InterProcessCommunication from './engine/InterProcessCommunication.mjs';
 import Enums from './engine/Enums.mjs';
 import Connector from './engine/Connector.mjs';
 
@@ -25,12 +24,24 @@ export default class HakuNeko {
         this._version = Version;
         this._enums = Enums;
 
-        let ipc = new InterProcessCommunication();
+        const ipcBridge = {
+            listen(channel, handler) {
+                window.hakunekoAPI.ipc.on(channel, async (event, responseChannelID, payload) => {
+                    try {
+                        const data = await handler(payload);
+                        window.hakunekoAPI.ipc.send(responseChannelID, data);
+                    } catch (error) {
+                        console.error(error);
+                        window.hakunekoAPI.ipc.send(responseChannelID, undefined);
+                    }
+                });
+            }
+        };
         this._blacklist = new Blacklist();
         this._downloadManager = new DownloadManager();
         this._settings = new Settings();
-        this._request = new Request(ipc, this._settings);
-        this._connectors = new Connectors(ipc);
+        this._request = new Request(ipcBridge, this._settings);
+        this._connectors = new Connectors(ipcBridge);
         this._storage = new Storage();
         this._bookmarkManager = new BookmarkManager(this._settings, new BookmarkImporter());
         this._comicInfoGenerator = new ComicInfoGenerator();

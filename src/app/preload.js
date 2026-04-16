@@ -19,6 +19,7 @@ const hakunekoAPI = {
     },
     app: {
         getPath: (name) => ipcRenderer.invoke('hakuneko:app:getPath', name),
+        quit: () => ipcRenderer.send('hakuneko:ipc:quit'),
     },
     shell: {
         showItemInFolder: (fullPath) => ipcRenderer.invoke('hakuneko:shell:showItemInFolder', fullPath),
@@ -52,7 +53,7 @@ const hakunekoAPI = {
     },
     ipc: {
         on: (channel, callback) => {
-            const allowedChannels = ['on-before-send-headers', 'on-headers-received', 'on-connector-protocol-handler', 'close'];
+            const allowedChannels = ['hakuneko:ipc:connector-protocol', 'hakuneko:ipc:close'];
             if (allowedChannels.includes(channel)) {
                 ipcRenderer.on(channel, callback);
             }

@@ -1,7 +1,7 @@
 export default class Connectors {
 
     constructor(ipc) {
-        ipc.listen('on-connector-protocol-handler', this._onConnectorProtocolHandler.bind(this));
+        ipc.listen('hakuneko:ipc:connector-protocol', this._onConnectorProtocolHandler.bind(this));
         this._list = [];
     }
 
