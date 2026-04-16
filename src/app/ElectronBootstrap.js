@@ -208,7 +208,7 @@ module.exports = class ElectronBootstrap {
     _registerConnectorProtocol() {
         electron.protocol.registerBufferProtocol(this._configuration.connectorProtocol, async (request, callback) => {
             try {
-                callback(await this._ipcSend('on-connector-protocol-handler', request));
+                callback(await this._ipcInvokeRenderer('connector-protocol', request));
             } catch(error) {
                 callback(undefined);
             }
@@ -381,7 +381,7 @@ module.exports = class ElectronBootstrap {
         this._window.on('restore', this._mainWindowRestoreHandler.bind(this));
         this._window.on('maximize', this._mainWindowRestoreHandler.bind(this));
         this._window.on('minimize', this._mainWindowMinimizeHandler.bind(this));
-        electron.ipcMain.on('quit', this._mainWindowQuitHandler.bind(this));
+        electron.ipcMain.on('hakuneko:ipc:quit', this._mainWindowQuitHandler.bind(this));
         this._registerIPCHandlers();
     }
 
@@ -409,7 +409,7 @@ module.exports = class ElectronBootstrap {
      * @param {*} evt
      */
     _mainWindowCloseHandler(evt) {
-        this._window.webContents.send('close');
+        this._window.webContents.send('hakuneko:ipc:close');
         evt.preventDefault();
     }
 
@@ -458,24 +458,29 @@ module.exports = class ElectronBootstrap {
         }
     }
 
-    async _ipcSend(channel, payload) {
-        /*
-         * inject javascript: looks stupid, but is a working solution to call a function which returns data
-         * directly within the render process (without dealing with ipcRenderer)
-         */
-        return new Promise(resolve => {
-            /*
-             * prevent from injecting javascript into the webpage while the webcontent is not yet ready
-             * => required for loading initial page over http protocol (e.g. local hosted test page)
-             */
-            if(this._window && this._window.webContents && !this._window.webContents.isLoading()) {
-                let responseChannelID = '' + Date.now() + Math.random();
-                this._window.webContents.send(channel, responseChannelID, payload);
-                // TODO: set timeout and remove listener in case no answer is received ...
-                electron.ipcMain.once(responseChannelID, (event, data) => resolve(data));
-            } else {
-                throw new Error(`Cannot call remote channel "${channel}" while web-application is not yet ready!`);
-            }
+    /**
+     * Send a request to the renderer and wait for a response.
+     * Used for connector-protocol where the handler lives in renderer-side Connectors.mjs.
+     * @param {string} channel
+     * @param {any} payload
+     * @param {number} timeoutMs
+     * @returns {Promise<any>}
+     */
+    async _ipcInvokeRenderer(channel, payload, timeoutMs = 30000) {
+        if (!this._window?.webContents || this._window.webContents.isLoading()) {
+            throw new Error(`Cannot call renderer channel "${channel}" — web content not ready`);
+        }
+        const responseChannel = `hakuneko:ipc:${channel}:resp:${Date.now()}-${Math.random()}`;
+        return new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                electron.ipcMain.removeAllListeners(responseChannel);
+                reject(new Error(`IPC timeout: ${channel} after ${timeoutMs}ms`));
+            }, timeoutMs);
+            electron.ipcMain.once(responseChannel, (event, data) => {
+                clearTimeout(timer);
+                resolve(data);
+            });
+            this._window.webContents.send('hakuneko:ipc:connector-protocol', responseChannel, payload);
         });
     }
 
