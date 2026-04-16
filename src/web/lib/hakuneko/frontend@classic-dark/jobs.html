@@ -122,14 +122,11 @@
              */
             ready() {
                 super.ready();
-                // HACK: electron specific code should not be added to UI elements, but due to the
-                //       close confirmation bug this workaround is currently the best solution...
-                this.ipc = require( 'electron' ).ipcRenderer;
                 this.popupVisibility = false;
                 this.jobList = [];
                 // register callbacks for events published by download manager
                 Engine.DownloadManager.addEventListener('updated', this.onDownloadStatusUpdated.bind(this));
-                this.ipc.on( 'close', this.onClose.bind( this ) );
+                window.hakunekoAPI.ipc.on( 'hakuneko:ipc:close', this.onClose.bind( this ) );
             }
 
             /**
@@ -237,7 +234,7 @@
                     return ( job.status === 'queued' || job.status === 'downloading' );
                 } );
                 if( index < 0 || await confirm( 'Downloads are still in progress.\nClose application anyway?' ) ) {
-                    this.ipc.send( 'quit' );
+                    window.hakunekoAPI.app.quit();
                 }
             }
         }
