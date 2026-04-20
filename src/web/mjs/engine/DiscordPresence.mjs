@@ -1,13 +1,8 @@
-const discordPresenceId = '726702836775256094';
-const DiscordRPC = require('discord-rpc');
-DiscordRPC.register(discordPresenceId);
-
 export default class DiscordPresence {
 
     constructor(settings) {
-        this.rpc = null;
         this.updater = null;
-        this.IpcBytes = 0; // keep track of IPC connection
+        this.connected = false;
 
         this._settings = settings; // Engine.Settings
         this.enabled = false;
@@ -48,7 +43,7 @@ export default class DiscordPresence {
         if (this.status.state) delete this.status.state;
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
     _onSelectManga(event) {
@@ -57,7 +52,7 @@ export default class DiscordPresence {
         this.status['state'] = 'Looking at ' + event.detail.title;
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
     _onSelectChapter(event) {
@@ -66,61 +61,51 @@ export default class DiscordPresence {
         this.status['state'] = event.detail.title.padEnd(2); // State min. length is 2 char
         this.status.startTimestamp = + new Date();
         this.statusNew = true;
-        if (this.enabled && !this.rpc) this.startDiscordPresence();
+        if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
     isThisHentai(tags) {
-        // Hentai check
         tags = tags.map(t => t.toLowerCase());
-        if(tags.includes('hentai') || tags.includes('porn')) {
-            this.hentai = true;
-        } else {
-            this.hentai = false;
-        }
+        this.hentai = tags.includes('hentai') || tags.includes('porn');
     }
 
     async updateStatus() {
-        if(this.rpc) {
+        if (this.connected) {
             if (this.enabled && this.statusNew) {
-                this.IpcBytes = this.rpc.transport.socket.bytesWritten;
-                if( !this.hentai || this.hentai && this.enabledHentai) {
-                    this.rpc.setActivity(this.status);
+                if (!this.hentai || this.hentai && this.enabledHentai) {
+                    const result = await window.hakunekoAPI.discord.setActivity(this.status).catch(() => ({ connected: false }));
+                    if (!result || !result.connected) {
+                        console.warn('WARNING: DiscordPresence - Lost connection to Discord.');
+                        this.stopDiscordPresence();
+                        return;
+                    }
+                    this.statusNew = false;
                 } else {
                     this.statusNew = false;
                 }
-            }
-
-            // Test if IPC is still active
-            if ( this.statusNew && this.rpc.transport.socket.bytesWritten > this.IpcBytes) {
-                this.IpcBytes = this.rpc.transport.socket.bytesWritten;
-                this.statusNew = false;
-            } else if (this.rpc.transport.socket.bytesWritten == this.IpcBytes && this.statusNew) {
-                console.warn('WARNING: DiscordPresence - Lost connection to Discord.');
-                this.stopDiscordPresence();
             }
         }
     }
 
     stopDiscordPresence() {
         this.statusNew = false;
+        this.connected = false;
         clearInterval(this.updater);
-        if (this.rpc) {
-            this.rpc.clearActivity();
-            this.rpc.destroy();
-        }
-        this.rpc = null;
+        this.updater = null;
+        window.hakunekoAPI.discord.stop().catch(() => {});
     }
 
     async startDiscordPresence() {
-        if(this.rpc) {
+        if (this.connected) {
             return; // already running ...
         }
-        this.rpc = new DiscordRPC.Client({ transport: 'ipc' });
-        this.rpc.on('ready', () => {
+        try {
+            await window.hakunekoAPI.discord.start();
+            this.connected = true;
             this.status.startTimestamp = + new Date();
 
             // some delay for Discord to be receptive
-            setTimeout( () => {
+            setTimeout(() => {
                 this.updateStatus();
             }, 2000);
 
@@ -128,12 +113,8 @@ export default class DiscordPresence {
             this.updater = setInterval(() => {
                 this.updateStatus();
             }, 15200);
-        });
-
-        try {
-            await this.rpc.login({ clientId: discordPresenceId });
         } catch (error) {
-            if (typeof error !== 'undefined') { // discord-rpc error handling
+            if (typeof error !== 'undefined') {
                 if (/Could not connect/i.test(error.message)) {
                     console.warn('WARNING: DiscordPresence - Could not connect (Is Discord running?)');
                     return;
@@ -141,11 +122,10 @@ export default class DiscordPresence {
 
                 if (/RPC_CONNECTION_TIMEOUT/i.test(error.message)) {
                     console.warn('WARNING: DiscordPresence - RPC connection timed out.');
-                    // Reset
-                    this.rpc = null;
+                    this.connected = false;
 
                     // Waiting delay for Discord API to allow new connection
-                    setTimeout( () => {
+                    setTimeout(() => {
                         // Re-evaluate if enabled
                         this._onSettingsChanged();
                     }, 120000);
@@ -155,13 +135,12 @@ export default class DiscordPresence {
 
                 throw error; // Unknown error
 
-            } else { // Javascript error handling
+            } else {
                 console.warn('WARNING: DiscordPresence - Connection was closed unexpectedly.');
-                // Reset
-                this.rpc = null;
+                this.connected = false;
 
                 // Waiting delay for Discord API to allow new connection
-                setTimeout( () => {
+                setTimeout(() => {
                     // Re-evaluate if still enabled
                     this._onSettingsChanged();
                 }, 15200);
