@@ -606,7 +606,7 @@ export default class Storage {
             command = command.replace(/%C%/g, chapter.manga.connector.label);
             command = command.replace(/%M%/g, chapter.manga.title);
             command = command.replace(/%O%/g, chapter.title);
-            window.hakunekoAPI.exec(command, { cwd: this.path.dirname(path), windowsHide: true }).catch(error => {
+            window.hakunekoAPI.exec.postCommand(command, { cwd: this.path.dirname(path), windowsHide: true }).catch(error => {
                 console.error(error);
             });
         }
@@ -711,7 +711,7 @@ export default class Storage {
             let file = this.path.join(directory, this.sanatizePath(chapter.title + extensions.mkv));
             directory = this.path.join(directory, this.sanatizePath(chapter.title + extensions.m3u8));
             ffmpeg += ` -f matroska -y "${file}"`;
-            window.hakunekoAPI.exec(ffmpeg, { cwd: directory, windowsHide: true }).then(() => {
+            window.hakunekoAPI.exec.ffmpeg(ffmpeg, { cwd: directory, windowsHide: true }).then(() => {
                 resolve();
             }).catch(error => {
                 reject(error);

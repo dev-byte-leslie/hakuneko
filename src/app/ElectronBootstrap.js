@@ -101,6 +101,59 @@ module.exports = class ElectronBootstrap {
     }
 
     /**
+     * Validates that a command is a safe ffmpeg invocation.
+     * Returns an error message string if invalid, null if valid.
+     * @param {*} command
+     * @returns {string|null}
+     */
+    static validateFfmpegCommand(command) {
+        if (typeof command !== 'string') return 'Invalid command';
+        const trimmed = command.trimStart();
+        if (!trimmed.startsWith('ffmpeg ') && trimmed !== 'ffmpeg') {
+            return 'Only ffmpeg commands are allowed';
+        }
+        return null;
+    }
+
+    /**
+     * Validates that a URL uses an allowed scheme (http or https).
+     * Returns an error message string if invalid, null if valid.
+     * @param {*} url
+     * @returns {string|null}
+     */
+    static validateExternalUrl(url) {
+        if (typeof url !== 'string') return 'Invalid URL';
+        const allowedSchemes = ['https:', 'http:'];
+        try {
+            const parsed = new URL(url);
+            if (!allowedSchemes.includes(parsed.protocol)) {
+                return `Scheme "${parsed.protocol}" is not allowed`;
+            }
+        } catch (e) {
+            return 'Invalid URL';
+        }
+        return null;
+    }
+
+    /**
+     * Validates that a file path is safe (no traversal, no system directories).
+     * Returns an error message string if invalid, null if valid.
+     * @param {*} filePath
+     * @returns {string|null}
+     */
+    static validateFilePath(filePath) {
+        if (typeof filePath !== 'string') return 'Invalid path';
+        // Check raw input for traversal sequences before resolving
+        if (filePath.includes('..')) return 'Path traversal not allowed';
+        const resolved = path.resolve(filePath);
+        const dangerous = ['/', '/etc', '/usr', '/bin', '/sbin', 'c:\\windows', 'c:\\windows\\system32'];
+        if (dangerous.some(d => resolved.toLowerCase() === d)) {
+            return 'Cannot open system directories';
+        }
+        return null;
+    }
+
+    /**
      *
      */
     launch() {
@@ -651,24 +704,59 @@ module.exports = class ElectronBootstrap {
         });
         // Shell
         ipcMain.handle('hakuneko:shell:showItemInFolder', (event, fullPath) => {
-            shell.showItemInFolder(fullPath);
+            const err = ElectronBootstrap.validateFilePath(fullPath);
+            if (err) {
+                this._logger.warn(`[IPC] Rejected showItemInFolder — ${err}: ${String(fullPath).slice(0, 100)}`);
+                return;
+            }
+            shell.showItemInFolder(path.resolve(fullPath));
         });
         ipcMain.handle('hakuneko:shell:openExternal', (event, url) => {
+            const err = ElectronBootstrap.validateExternalUrl(url);
+            if (err) {
+                this._logger.warn(`[IPC] Rejected openExternal — ${err}: ${String(url).slice(0, 100)}`);
+                return Promise.reject(new Error(err));
+            }
             return shell.openExternal(url);
         });
         ipcMain.handle('hakuneko:shell:openPath', (event, filePath) => {
-            return shell.openPath(filePath);
+            const err = ElectronBootstrap.validateFilePath(filePath);
+            if (err) {
+                this._logger.warn(`[IPC] Rejected openPath — ${err}: ${String(filePath).slice(0, 100)}`);
+                return Promise.reject(new Error(err));
+            }
+            return shell.openPath(path.resolve(filePath));
         });
 
-        // Child process exec
-        ipcMain.handle('hakuneko:exec', (event, command, options) => {
+        // Child process exec — ffmpeg only (used by muxPlaylistM3U8)
+        ipcMain.handle('hakuneko:exec:ffmpeg', (event, command, options) => {
+            const err = ElectronBootstrap.validateFfmpegCommand(command);
+            if (err) {
+                this._logger.warn(`[IPC] Rejected exec:ffmpeg — ${err}: ${String(command).slice(0, 80)}`);
+                return Promise.reject(new Error(err));
+            }
             return new Promise((resolve, reject) => {
                 exec(command, options, (error, stdout, stderr) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        resolve({ stdout, stderr });
-                    }
+                    if (error) reject(error);
+                    else resolve({ stdout, stderr });
+                });
+            });
+        });
+
+        // Child process exec — post-chapter-download user command
+        ipcMain.handle('hakuneko:exec:postCommand', (event, command, options) => {
+            if (typeof command !== 'string' || command.length === 0) {
+                return Promise.reject(new Error('Invalid command'));
+            }
+            if (command.length > 2048) {
+                this._logger.warn(`[IPC] Rejected exec:postCommand — command too long (${command.length} chars)`);
+                return Promise.reject(new Error('Command exceeds maximum length'));
+            }
+            this._logger.info(`[IPC] exec:postCommand: ${command.slice(0, 200)}`);
+            return new Promise((resolve, reject) => {
+                exec(command, options, (error, stdout, stderr) => {
+                    if (error) reject(error);
+                    else resolve({ stdout, stderr });
                 });
             });
         });
