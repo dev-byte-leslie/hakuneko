@@ -146,8 +146,11 @@ module.exports = class ElectronBootstrap {
         // Check raw input for traversal sequences before resolving
         if (filePath.includes('..')) return 'Path traversal not allowed';
         const resolved = path.resolve(filePath);
+        const lower = resolved.toLowerCase();
+        // Block Windows drive roots (C:\, D:\, etc.)
+        if (/^[a-zA-Z]:\\?$/.test(resolved)) return 'Cannot open system directories';
         const dangerous = ['/', '/etc', '/usr', '/bin', '/sbin', 'c:\\windows', 'c:\\windows\\system32'];
-        if (dangerous.some(d => resolved.toLowerCase() === d)) {
+        if (dangerous.some(d => lower === d)) {
             return 'Cannot open system directories';
         }
         return null;

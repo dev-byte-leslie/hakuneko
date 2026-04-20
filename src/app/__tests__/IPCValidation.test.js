@@ -137,11 +137,19 @@ describe('ElectronBootstrap.validateFilePath', () => {
     });
 
     it('rejects root "/"', () => {
+        // On Windows, '/' resolves to the drive root (e.g. C:\) which is caught by the drive-root regex
         expect(validate('/')).not.toBeNull();
     });
 
-    it('rejects "/etc"', () => {
+    // /etc is a Unix system directory; on Windows it resolves to C:\etc which is not a system path
+    const itUnixOnly = process.platform === 'win32' ? it.skip : it;
+    itUnixOnly('rejects "/etc" (Unix only)', () => {
         expect(validate('/etc')).not.toBeNull();
+    });
+
+    const itWindowsOnly = process.platform === 'win32' ? it : it.skip;
+    itWindowsOnly('rejects Windows drive root "C:\\" (Windows only)', () => {
+        expect(validate('C:\\')).not.toBeNull();
     });
 
     it('rejects non-string (null)', () => {
