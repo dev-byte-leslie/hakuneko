@@ -93,6 +93,18 @@ describe('ElectronBootstrap.validateExternalUrl', () => {
         expect(validate('ftp://server')).not.toBeNull();
     });
 
+    it('rejects data: URL', () => {
+        expect(validate('data:text/html,<script>alert(1)</script>')).not.toBeNull();
+    });
+
+    it('rejects blob: URL', () => {
+        expect(validate('blob:https://example.com/uuid')).not.toBeNull();
+    });
+
+    it('rejects ws:// URL', () => {
+        expect(validate('ws://attacker.com')).not.toBeNull();
+    });
+
     it('rejects empty string (invalid URL)', () => {
         expect(validate('')).not.toBeNull();
     });
