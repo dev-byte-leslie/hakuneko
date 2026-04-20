@@ -72,6 +72,62 @@ const hakunekoAPI = {
             }
         },
     },
+    fs: {
+        readFile: async (filePath, encoding) => {
+            if (filePath && typeof filePath === 'object' && typeof filePath.then === 'function') {
+                throw new TypeError('Unawaited promise passed as file path to fs.readFile — missing await?');
+            }
+            return ipcRenderer.invoke('hakuneko:fs:readFile', filePath, encoding);
+        },
+        writeFile: async (filePath, data) => {
+            if (filePath && typeof filePath === 'object' && typeof filePath.then === 'function') {
+                throw new TypeError('Unawaited promise passed as file path to fs.writeFile — missing await?');
+            }
+            return ipcRenderer.invoke('hakuneko:fs:writeFile', filePath, data);
+        },
+        appendFile: async (filePath, data) => {
+            if (filePath && typeof filePath === 'object' && typeof filePath.then === 'function') {
+                throw new TypeError('Unawaited promise passed as file path to fs.appendFile — missing await?');
+            }
+            return ipcRenderer.invoke('hakuneko:fs:appendFile', filePath, data);
+        },
+        readdir: (dirPath) => ipcRenderer.invoke('hakuneko:fs:readdir', dirPath),
+        stat: (filePath) => ipcRenderer.invoke('hakuneko:fs:stat', filePath),
+        exists: (filePath) => ipcRenderer.invoke('hakuneko:fs:existsSync', filePath),
+        mkdir: (dirPath) => ipcRenderer.invoke('hakuneko:fs:mkdir', dirPath),
+        unlinkSync: (filePath) => ipcRenderer.invoke('hakuneko:fs:unlinkSync', filePath),
+    },
+    path: {
+        join: async (...segments) => {
+            for (const s of segments) {
+                if (s && typeof s === 'object' && typeof s.then === 'function') {
+                    throw new TypeError('Unawaited promise passed to path.join — missing await?');
+                }
+            }
+            return ipcRenderer.invoke('hakuneko:path:join', ...segments);
+        },
+        resolve: async (...segments) => {
+            for (const s of segments) {
+                if (s && typeof s === 'object' && typeof s.then === 'function') {
+                    throw new TypeError('Unawaited promise passed to path.resolve — missing await?');
+                }
+            }
+            return ipcRenderer.invoke('hakuneko:path:resolve', ...segments);
+        },
+        dirname: (p) => ipcRenderer.invoke('hakuneko:path:dirname', p),
+        basename: (p, ext) => ipcRenderer.invoke('hakuneko:path:basename', p, ext),
+        extname: (p) => ipcRenderer.invoke('hakuneko:path:extname', p),
+        parse: (p) => ipcRenderer.invoke('hakuneko:path:parse', p),
+        sep: process.platform === 'win32' ? '\\' : '/',
+    },
+    os: {
+        tmpdir: () => ipcRenderer.invoke('hakuneko:os:tmpdir'),
+    },
+    discord: {
+        start: () => ipcRenderer.invoke('hakuneko:discord:start'),
+        stop: () => ipcRenderer.invoke('hakuneko:discord:stop'),
+        setActivity: (status) => ipcRenderer.invoke('hakuneko:discord:setActivity', status),
+    },
 };
 
 // Use contextBridge if contextIsolation is enabled, otherwise set on window directly.

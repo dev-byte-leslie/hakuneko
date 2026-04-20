@@ -37,9 +37,6 @@ export default class Settings extends EventTarget {
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Conenctors
     constructor() {
         super();
-        let path = require('path');
-        let docs = '.';
-
         this.frontend = {
             label: 'Frontend ⁽¹⁾',
             description: [
@@ -66,7 +63,7 @@ export default class Settings extends EventTarget {
             label: 'Manga Directory',
             description: 'The base directory where all downloaded mangas will be stored',
             input: types.directory,
-            value: path.join(docs, 'Mangas')
+            value: 'Mangas'
         };
 
         this.bookmarkDirectory = {
@@ -279,11 +276,10 @@ export default class Settings extends EventTarget {
 
     /** Resolve async paths that cannot be fetched in the constructor. */
     async initialize() {
-        let path = require('path');
         try {
             let docs = await window.hakunekoAPI.app.getPath('documents');
             if (docs) {
-                this.baseDirectory.value = path.join(docs, 'Mangas');
+                this.baseDirectory.value = await window.hakunekoAPI.path.join(docs, 'Mangas');
             }
         } catch (_) {
             // documents directory not found — keep default

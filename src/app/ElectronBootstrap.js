@@ -3,6 +3,8 @@ const fs = require('fs-extra');
 const electron = require('electron');
 const { exec } = require('child_process');
 const { ConsoleLogger } = require('@logtrine/logtrine');
+const os = require('os');
+const DiscordPresenceMain = require('./DiscordPresenceMain');
 const urlFilterAll = { urls: ['http://*/*', 'https://*/*'] };
 const trayTooltipMinimize = 'HakuNeko\nClick to hide window';
 const trayTooltipRestore = 'HakuNeko\nClick to show window';
@@ -98,6 +100,7 @@ module.exports = class ElectronBootstrap {
         this._showTray = false;
         this._tray;
         this._certBypassDomains = new Set();
+        this._discordPresence = null;
     }
 
     /**
@@ -419,7 +422,7 @@ module.exports = class ElectronBootstrap {
             show: false,
             backgroundColor: '#f8f8f8',
             webPreferences: {
-                nodeIntegration: true, // TODO(HAKU-0004): flip to false after migrating require('fs'/'path'/'os') in Storage.mjs, Settings.mjs, DiscordPresence.mjs to IPC handlers
+                nodeIntegration: false, // HAKU-0032: require('fs'/'path'/'os'/'discord-rpc') migrated to IPC handlers
                 contextIsolation: true,
                 webSecurity: true,
                 preload: path.join(__dirname, 'preload.js')
@@ -789,6 +792,77 @@ module.exports = class ElectronBootstrap {
         });
         ipcMain.handle('hakuneko:browser:fetchJapscan', (event, url, preloadScript, runtimeScript, preferences, timeout, requestOptions) => {
             return this._browserFetchJapscan(url, preloadScript, runtimeScript, preferences, timeout, requestOptions);
+        });
+
+        // File system — HAKU-0032a
+        ipcMain.handle('hakuneko:fs:readFile', (event, filePath, encoding) => {
+            return fs.readFile(filePath, encoding || null);
+        });
+        ipcMain.handle('hakuneko:fs:writeFile', (event, filePath, data) => {
+            return fs.writeFile(filePath, data);
+        });
+        ipcMain.handle('hakuneko:fs:appendFile', (event, filePath, data) => {
+            return fs.appendFile(filePath, data);
+        });
+        ipcMain.handle('hakuneko:fs:readdir', (event, dirPath) => {
+            return fs.readdir(dirPath);
+        });
+        ipcMain.handle('hakuneko:fs:stat', async (event, filePath) => {
+            const stats = await fs.stat(filePath);
+            return {
+                isDirectory: stats.isDirectory(),
+                isFile: stats.isFile(),
+                size: stats.size,
+                mtime: stats.mtime,
+            };
+        });
+        ipcMain.handle('hakuneko:fs:existsSync', (event, filePath) => {
+            return fs.existsSync(filePath);
+        });
+        ipcMain.handle('hakuneko:fs:mkdir', (event, dirPath) => {
+            return fs.ensureDir(dirPath);
+        });
+        ipcMain.handle('hakuneko:fs:unlinkSync', (event, filePath) => {
+            return fs.remove(filePath);
+        });
+
+        // Path — HAKU-0032b
+        ipcMain.handle('hakuneko:path:join', (event, ...segments) => {
+            return path.join(...segments);
+        });
+        ipcMain.handle('hakuneko:path:resolve', (event, ...segments) => {
+            return path.resolve(...segments);
+        });
+        ipcMain.handle('hakuneko:path:dirname', (event, p) => {
+            return path.dirname(p);
+        });
+        ipcMain.handle('hakuneko:path:basename', (event, p, ext) => {
+            return path.basename(p, ext);
+        });
+        ipcMain.handle('hakuneko:path:extname', (event, p) => {
+            return path.extname(p);
+        });
+        ipcMain.handle('hakuneko:path:parse', (event, p) => {
+            return path.parse(p);
+        });
+
+        // OS — HAKU-0032c
+        ipcMain.handle('hakuneko:os:tmpdir', () => {
+            return os.tmpdir();
+        });
+
+        // Discord — HAKU-0032f
+        ipcMain.handle('hakuneko:discord:start', () => {
+            if (!this._discordPresence) {
+                this._discordPresence = new DiscordPresenceMain();
+            }
+            return this._discordPresence.start();
+        });
+        ipcMain.handle('hakuneko:discord:stop', () => {
+            return this._discordPresence ? this._discordPresence.stop() : undefined;
+        });
+        ipcMain.handle('hakuneko:discord:setActivity', (event, status) => {
+            return this._discordPresence ? this._discordPresence.setActivity(status) : { connected: false };
         });
     }
 
