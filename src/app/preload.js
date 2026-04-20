@@ -26,7 +26,10 @@ const hakunekoAPI = {
         openExternal: (url) => ipcRenderer.invoke('hakuneko:shell:openExternal', url),
         openPath: (path) => ipcRenderer.invoke('hakuneko:shell:openPath', path),
     },
-    exec: (command, options) => ipcRenderer.invoke('hakuneko:exec', command, options),
+    exec: {
+        ffmpeg: (command, options) => ipcRenderer.invoke('hakuneko:exec:ffmpeg', command, options),
+        postCommand: (command, options) => ipcRenderer.invoke('hakuneko:exec:postCommand', command, options),
+    },
     platform: process.platform,
     session: {
         cookies: {
@@ -59,7 +62,14 @@ const hakunekoAPI = {
             }
         },
         send: (channel, ...args) => {
-            ipcRenderer.send(channel, ...args);
+            const allowedSendChannels = ['hakuneko:ipc:quit'];
+            // Dynamic response channels: timestamp digits + optional decimal (e.g. "1718234567890.123")
+            const isDynamicResponseChannel = /^\d{13,}\.?\d*$/.test(channel);
+            if (allowedSendChannels.includes(channel) || isDynamicResponseChannel) {
+                ipcRenderer.send(channel, ...args);
+            } else {
+                console.warn(`[preload] Blocked ipc.send to disallowed channel: ${channel}`);
+            }
         },
     },
 };
