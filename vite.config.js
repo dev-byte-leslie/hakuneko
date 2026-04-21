@@ -45,7 +45,7 @@ export default defineConfig({
             // Use the JS entry directly so that index.html is not transformed by
             // Vite (avoids hashing of <link rel="icon"> and <script src="..."> paths).
             // index.html is copied as-is via viteStaticCopy below.
-            input: 'src/web/mjs/HakuNeko.mjs',
+            input: ['src/web/mjs/HakuNeko.mjs', 'src/web/mjs/globals.mjs'],
             // Required when preserveModules is true — Vite's default of false conflicts
             preserveEntrySignatures: 'strict',
             output: {
@@ -72,8 +72,6 @@ export default defineConfig({
                 // Polymer HTML Import components (loaded at runtime via webcomponents polyfill,
                 // not processed by Rollup)
                 { src: 'lib/**/*', dest: 'lib' },
-                // Vendored scripts (loaded via <script> tags in index.html — not ES modules)
-                { src: 'js/**/*', dest: 'js' },
                 // Static assets
                 { src: 'img/**/*', dest: 'img' },
                 { src: 'css/**/*', dest: 'css' },

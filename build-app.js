@@ -1,7 +1,7 @@
 const path = require('path');
 const fs = require('fs-extra');
 const zlib = require('zlib');
-const asar = require('asar');
+const asar = require('@electron/asar');
 const https = require('https');
 const eol = require('os').EOL;
 const exec = require('child_process').exec;
@@ -22,7 +22,7 @@ class ElectronPackager {
     /**
      *
      */
-    build(architecture) {
+    build(/* architecture */) {
         throw new Error('Not implemented!');
     }
 
@@ -647,7 +647,7 @@ class ElectronPackagerWindows extends ElectronPackager {
             `"${path.join(this._dirBuildRoot, this._configuration.binary.windows)}"`,
             `--set-version-string "ProductName" "${this._configuration.name.product}"`,
             `--set-version-string "CompanyName" ""`,
-            `--set-version-string "LegalCopyright" "${(new Date()).getFullYear()}"`,
+            `--set-version-string "LegalCopyright" "${new Date().getFullYear()}"`,
             `--set-version-string "FileDescription" "${this._configuration.description.short}"`,
             `--set-version-string "InternalName" ""`,
             `--set-version-string "OriginalFilename" "${this._configuration.binary.windows}"`,
@@ -903,5 +903,7 @@ async function main() {
 }
 
 // exit application as soon as any uncaught exception is thrown
-process.on('unhandledRejection', error => { throw error; });
+process.on('unhandledRejection', error => {
+    throw error;
+});
 main();
