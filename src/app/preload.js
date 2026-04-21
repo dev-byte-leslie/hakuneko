@@ -31,6 +31,7 @@ const hakunekoAPI = {
         postCommand: (command, options) => ipcRenderer.invoke('hakuneko:exec:postCommand', command, options),
     },
     platform: process.platform,
+    isPortable: !!process.env.HAKUNEKO_PORTABLE,
     session: {
         cookies: {
             get: (filter) => ipcRenderer.invoke('hakuneko:session:cookies:get', filter),
