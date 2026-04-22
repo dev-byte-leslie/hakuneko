@@ -1,4 +1,4 @@
-import type { ChapterFile, EntityStatus } from './types';
+import type { ChapterFile, EntityStatus, HLSEpisode, VideoEpisode } from './types';
 import type Manga from './Manga';
 
 const events = {
@@ -21,13 +21,13 @@ export default class Chapter extends EventTarget {
     id: string;
     title: string;
     file: ChapterFile;
-    language: string;
+    language: string | undefined;
     status: EntityStatus | undefined;
     pageProcess: boolean;
-    pageCache: string[] | object | undefined;
+    pageCache: string[] | HLSEpisode | VideoEpisode | undefined;
 
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Storage, all Enums
-    constructor( manga: Manga, id: string, title: string, language: string, status?: EntityStatus ) {
+    constructor( manga: Manga, id: string, title: string, language?: string, status?: EntityStatus ) {
         super();
         this.manga = manga;
         this.id = id;
@@ -100,11 +100,11 @@ export default class Chapter extends EventTarget {
      * Callback will be executed after completion and provided with an error (or null when no error occured)
      * and a reference to the page list (undefined on error).
      */
-    getPages( callback: (error: Error | null, pages: string[] | object | undefined) => void ): void {
+    getPages( callback: (error: Error | null, pages: string[] | HLSEpisode | VideoEpisode | undefined) => void ): void {
         document.dispatchEvent(new CustomEvent(EventListener.onSelectChapter, { detail: this }));
         if( this.status === statusDefinitions.offline || this.status === statusDefinitions.completed ) {
             Engine.Storage.loadChapterPages( this )
-                .then( (pages: string[] | object) => {
+                .then( (pages) => {
                     callback( null, pages );
                 } )
                 .catch( (error: Error) => {
@@ -120,10 +120,10 @@ export default class Chapter extends EventTarget {
             this.manga.connector.initialize()
                 .then( () => {
                 // get page list directly from the connector interface and cache them
-                    this.manga.connector._getPageList( this.manga, this, ( error: Error | null, pages: string[] | object ) => {
+                    this.manga.connector._getPageList( this.manga, this, ( error: Error | null, pages: string[] | HLSEpisode | VideoEpisode ) => {
                         this.pageCache = [];
                         if( !error ) {
-                            if((pages as string[]).length || (pages as Record<string, unknown>).video || (pages as Record<string, unknown>).mirrors && ((pages as Record<string, unknown>).mirrors as string[]).length) {
+                            if((pages as string[]).length || 'video' in pages && (pages as VideoEpisode).video || 'mirrors' in pages && (pages as HLSEpisode).mirrors.length) {
                                 // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
                                 this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages;
                             } else {

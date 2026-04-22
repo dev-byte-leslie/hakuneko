@@ -1,5 +1,5 @@
 import Chapter from './Chapter';
-import type { EntityStatus, FormatRegex } from './types';
+import type { EntityStatus, FormatRegex, HLSEpisode, VideoEpisode } from './types';
 
 const events = {
     updated: 'updated'
@@ -24,7 +24,7 @@ interface MangaConnector {
     existingMangas: Record<string, boolean>;
     initialize(): Promise<void>;
     _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language: string }>) => void): void;
-    _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | object) => void): void;
+    _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | HLSEpisode | VideoEpisode) => void): void;
     getFormatRegex(): FormatRegex;
 }
 
@@ -119,7 +119,7 @@ export default class Manga extends EventTarget {
             .then( () => {
                 for( const existingChapterTitle in this.existingChapters ) {
                     if( !this.isChapterFileCached( existingChapterTitle ) ) {
-                        this.chapterCache.push( new Chapter( this, existingChapterTitle, existingChapterTitle, undefined as unknown as string, statusDefinitions.offline ) );
+                        this.chapterCache.push( new Chapter( this, existingChapterTitle, existingChapterTitle, undefined, statusDefinitions.offline ) );
                     }
                 }
                 callback( null, this.chapterCache );

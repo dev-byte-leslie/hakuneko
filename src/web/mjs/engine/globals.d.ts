@@ -1,4 +1,4 @@
-import type { EventListenerName } from './types';
+import type { EventListenerName, HLSEpisode, VideoEpisode } from './types';
 
 declare global {
     const Engine: EngineGlobal;
@@ -14,7 +14,7 @@ declare global {
 interface EngineGlobal {
     Storage: {
         sanatizePath(path: string): string;
-        loadChapterPages(chapter: unknown): Promise<string[] | object>;
+        loadChapterPages(chapter: unknown): Promise<string[] | HLSEpisode | VideoEpisode>;
         getExistingChapterTitles(manga: unknown): Promise<Record<string, boolean>>;
         getExistingMangaTitles(connector: unknown): Promise<Record<string, boolean>>;
     };
