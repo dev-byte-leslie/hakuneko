@@ -15,6 +15,8 @@
     "@hakuneko/imagemagick-binaries": "7.0.8-58-3",
     "@hakuneko/kindlegen-binaries": "2.9.0-3",
     "@logtrine/logtrine": "1.1.2",
+    "@typescript-eslint/eslint-plugin": "^7",
+    "@typescript-eslint/parser": "^7",
     "assjs": "^0.1.6",
     "crypto-js": "^4.2.0",
     "discord-rpc": "4.0.1",
@@ -33,6 +35,7 @@
     "protobufjs": "^8.0.1",
     "rcedit": "5.0.2",
     "sql.js": "^1.14.1",
+    "typescript": "^6.0.3",
     "vite": "^6.0.0",
     "vite-plugin-static-copy": "^2.0.0",
     "win-7zip": "0.1.1"
@@ -58,7 +61,8 @@
     "test:smoke:tier1": "cd tools/smoke-test && bun run tier1",
     "test:smoke:tier2": "cd tools/smoke-test && bun run tier2",
     "test:smoke:tier3": "cd tools/smoke-test && bun run tier3",
-    "scan:dead-links": "cd tools/connector-gen && bun run scan"
+    "scan:dead-links": "cd tools/connector-gen && bun run scan",
+    "typecheck": "tsc --noEmit"
   },
   "jest": {
     "testPathIgnorePatterns": [

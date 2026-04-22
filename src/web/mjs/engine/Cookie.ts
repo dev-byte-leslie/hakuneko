@@ -1,36 +1,38 @@
 export default class Cookie {
 
-    constructor(cookies) {
+    list: Record<string, string>;
+
+    constructor(cookies?: string) {
         this.list = {};
         (cookies || '').split(';')
             .filter(cookie => cookie.trim())
             .forEach(cookie => {
-                let pair = cookie.split('=');
-                this.set(pair.shift(), pair.join('='));
+                const pair = cookie.split('=');
+                this.set(pair.shift()!, pair.join('='));
             });
     }
 
-    toString() {
+    toString(): string {
         return Object.keys(this.list)
             .filter(key => this.list[key] !== 'EXPIRED')
             .map(key => key + '=' + this.list[key])
             .join('; ');
     }
 
-    get(key) {
+    get(key: string): string {
         return this.list[key];
     }
 
-    set(key, value) {
+    set(key: string, value: string): void {
         this.list[key.toString().trim()] = value.toString().trim();
     }
 
-    delete(key) {
+    delete(key: string): void {
         delete this.list[key];
     }
 
-    merge(cookie) {
-        let result = new Cookie();
+    merge(cookie: Cookie): Cookie {
+        const result = new Cookie();
         Object.keys(this.list).forEach(key => result.set(key, this.list[key]));
         if(cookie instanceof Cookie) {
             Object.keys(cookie.list).forEach(key => result.set(key, cookie.list[key]));
@@ -38,7 +40,7 @@ export default class Cookie {
         return result;
     }
 
-    static applyCrossSiteCookies(headers) {
+    static applyCrossSiteCookies(headers: Record<string, string | string[]>): void {
         let cookies = headers['set-cookie'] || headers['Set-Cookie'];
         if(!cookies) {
             return;
@@ -46,7 +48,7 @@ export default class Cookie {
         if(!Array.isArray(cookies)) {
             cookies = [ cookies ];
         }
-        for(let index in cookies) {
+        for(const index in cookies) {
             cookies[index] = [ ...cookies[index].split(';').map(part => part.trim()).filter(part => !/^SameSite=/i.test(part)), 'SameSite=None' ].join('; ');
         }
     }

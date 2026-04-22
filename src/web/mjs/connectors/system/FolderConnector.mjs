@@ -1,5 +1,5 @@
-import Manga from '../../engine/Manga.mjs';
-import Chapter from '../../engine/Chapter.mjs';
+import Manga from '../../engine/Manga';
+import Chapter from '../../engine/Chapter';
 
 const statusDefinitions = {
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory

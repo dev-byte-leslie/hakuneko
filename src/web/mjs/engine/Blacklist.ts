@@ -3,6 +3,9 @@ export default class Blacklist {
      * https://developer.chrome.com/extensions/match_patterns
      * https://developer.mozilla.org/en-US/Add-ons/WebExtensions/Match_patterns
      */
+
+    patterns: string[];
+
     constructor() {
         this.patterns = [
             '*://*.2mdnsys.com/*',
@@ -150,7 +153,7 @@ export default class Blacklist {
         ];
     }
 
-    addPattern( pattern ) {
+    addPattern( pattern: string ): void {
         if( !this.patterns.includes( pattern ) ) {
             this.patterns.push( pattern );
         }

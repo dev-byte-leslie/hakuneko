@@ -1,12 +1,15 @@
+import type { ChapterFile, EntityStatus, HLSEpisode, VideoEpisode } from './types';
+import type Manga from './Manga';
+
 const events = {
     updated: 'updated'
-};
+} as const;
 
 const extensions = {
     img: 'img'
-};
+} as const;
 
-const statusDefinitions = {
+const statusDefinitions: Record<string, EntityStatus> = {
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory
     available: 'available', // chapter/manga that can be added to the download list
     completed: 'completed', // chapter/manga that already exist on the users device
@@ -14,8 +17,17 @@ const statusDefinitions = {
 
 export default class Chapter extends EventTarget {
 
+    manga: Manga;
+    id: string;
+    title: string;
+    file: ChapterFile;
+    language: string | undefined;
+    status: EntityStatus | undefined;
+    pageProcess: boolean;
+    pageCache: string[] | HLSEpisode | VideoEpisode | undefined;
+
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Storage, all Enums
-    constructor( manga, id, title, language, status ) {
+    constructor( manga: Manga, id: string, title: string, language?: string, status?: EntityStatus ) {
         super();
         this.manga = manga;
         this.id = id;
@@ -34,7 +46,7 @@ export default class Chapter extends EventTarget {
     /**
      *
      */
-    setStatus( status ) {
+    setStatus( status: EntityStatus ): void {
         if( this.status !== status ) {
             this.status = status;
             this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
@@ -45,7 +57,7 @@ export default class Chapter extends EventTarget {
     /**
      *
      */
-    _getRawFileName( title ) {
+    _getRawFileName( title: string ): ChapterFile {
         return {
             name: title,
             extension: '',
@@ -56,9 +68,9 @@ export default class Chapter extends EventTarget {
     /**
      *
      */
-    _getSanatizedFileName( title ) {
-        let name = Engine.Storage.sanatizePath( title );
-        let extension = Engine.Settings.chapterFormat.value !== extensions.img ? Engine.Settings.chapterFormat.value : '';
+    _getSanatizedFileName( title: string ): ChapterFile {
+        const name = Engine.Storage.sanatizePath( title );
+        const extension = Engine.Settings.chapterFormat.value !== extensions.img ? Engine.Settings.chapterFormat.value : '';
         return {
             name: name,
             extension: extension,
@@ -69,7 +81,7 @@ export default class Chapter extends EventTarget {
     /**
      *
      */
-    updateStatus() {
+    updateStatus(): void {
         // do not overwrite download status ...
         if( !this.status || this.status === statusDefinitions.available || this.status === statusDefinitions.completed ) {
             if( !this.manga ) {
@@ -88,30 +100,30 @@ export default class Chapter extends EventTarget {
      * Callback will be executed after completion and provided with an error (or null when no error occured)
      * and a reference to the page list (undefined on error).
      */
-    getPages( callback ) {
+    getPages( callback: (error: Error | null, pages: string[] | HLSEpisode | VideoEpisode | undefined) => void ): void {
         document.dispatchEvent(new CustomEvent(EventListener.onSelectChapter, { detail: this }));
         if( this.status === statusDefinitions.offline || this.status === statusDefinitions.completed ) {
             Engine.Storage.loadChapterPages( this )
-                .then( pages => {
+                .then( (pages) => {
                     callback( null, pages );
                 } )
-                .catch( error => {
+                .catch( (error: Error) => {
                     console.error( error, this );
                     callback( error, undefined );
                 } );
         } else {
             // check if page list is cached
-            if( this.pageCache && this.pageCache.length ) {
+            if( this.pageCache && (this.pageCache as string[]).length ) {
                 callback( null, this.pageCache );
                 return;
             }
             this.manga.connector.initialize()
                 .then( () => {
                 // get page list directly from the connector interface and cache them
-                    this.manga.connector._getPageList( this.manga, this, ( error, pages ) => {
+                    this.manga.connector._getPageList( this.manga, this, ( error: Error | null, pages: string[] | HLSEpisode | VideoEpisode ) => {
                         this.pageCache = [];
                         if( !error ) {
-                            if(pages.length || pages.video || pages.mirrors && pages.mirrors.length) {
+                            if((pages as string[]).length || 'video' in pages && (pages as VideoEpisode).video || 'mirrors' in pages && (pages as HLSEpisode).mirrors.length) {
                                 // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
                                 this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages;
                             } else {
@@ -121,7 +133,7 @@ export default class Chapter extends EventTarget {
                         callback( error, this.pageCache );
                     } );
                 } )
-                .catch( error => {
+                .catch( (error: Error) => {
                     callback( error, undefined );
                 } );
         }

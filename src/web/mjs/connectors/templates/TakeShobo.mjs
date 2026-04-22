@@ -1,5 +1,5 @@
 import SpeedBinb from './SpeedBinb.mjs';
-import Manga from '../../engine/Manga.mjs';
+import Manga from '../../engine/Manga';
 
 export default class TakeShobo extends SpeedBinb {
 

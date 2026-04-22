@@ -1,5 +1,5 @@
 export default class ComicInfoGenerator {
-    createComicInfoXML(series, title, pagesCount) {
+    createComicInfoXML(series: string, title: string, pagesCount: number): string {
         series = this.escapeXML(series);
         title = this.escapeXML(title);
         return `<?xml version="1.0" encoding="utf-8"?>
@@ -10,8 +10,8 @@ export default class ComicInfoGenerator {
 </ComicInfo>`;
     }
 
-    escapeXML(str) {
-        const symbols = {
+    escapeXML(str: string): string {
+        const symbols: Record<string, string> = {
             '<': '&lt;',
             '>': '&gt;',
             '&': '&amp;',

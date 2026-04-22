@@ -1,4 +1,4 @@
-import Manga from './Manga.mjs';
+import Manga from './Manga';
 
 /**
  * Base class for connector plugins

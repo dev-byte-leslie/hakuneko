@@ -1,5 +1,5 @@
 import Connector from '../../engine/Connector.mjs';
-import Manga from '../../engine/Manga.mjs';
+import Manga from '../../engine/Manga';
 
 // Theme: https://themesia.com/mangastream-wordpress-theme/
 export default class WordPressMangastream extends Connector {

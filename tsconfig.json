@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "allowJs": true,
+        "strict": false,
+        "noEmit": true,
+        "moduleResolution": "bundler",
+        "module": "ESNext",
+        "target": "ESNext",
+        "esModuleInterop": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "src/web/mjs/engine/**/*.ts",
+        "src/web/mjs/engine/**/*.d.ts"
+    ],
+    "exclude": ["node_modules", "build"]
+}

@@ -33,6 +33,9 @@ function versionInfoPlugin() {
 
 export default defineConfig({
     root: 'src/web',
+    resolve: {
+        extensions: ['.ts', '.mjs', '.js', '.json'],
+    },
     build: {
         outDir: '../../build/web',
         emptyOutDir: true,
