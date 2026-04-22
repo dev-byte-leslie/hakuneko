@@ -1,32 +1,51 @@
-import Chapter from './Chapter.mjs';
+import Chapter from './Chapter';
+import type { EntityStatus, FormatRegex } from './types';
 
 const events = {
     updated: 'updated'
-};
+} as const;
 
 const extensions = {
     m3u8: '.m3u8',
     mkv:  '.mkv',
     mp4:  '.mp4'
-};
+} as const;
 
-const statusDefinitions = {
+const statusDefinitions: Record<string, EntityStatus> = {
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory
     available: 'available', // chapter/manga that can be added to the download list
     completed: 'completed', // chapter/manga that already exist on the users device
 };
 
+/** Minimal connector shape used by Manga (avoids importing full Connector to prevent circular deps) */
+interface MangaConnector {
+    id: string | symbol;
+    label: string;
+    existingMangas: Record<string, boolean>;
+    initialize(): Promise<void>;
+    _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language: string }>) => void): void;
+    _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | object) => void): void;
+    getFormatRegex(): FormatRegex;
+}
+
 export default class Manga extends EventTarget {
 
+    connector: MangaConnector;
+    id: string;
+    title: string;
+    status: EntityStatus | undefined;
+    chapterCache: Chapter[];
+    existingChapters: Record<string, boolean>;
+
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Storage, all Enums
-    constructor( connector, id, title, status ) {
+    constructor( connector: MangaConnector, id: string, title: string, status?: EntityStatus ) {
         super();
         this.connector = connector;
         this.id = id;
         this.title = title;
         this.status = status;
         this.chapterCache = [];
-        this.existingChapters = [];
+        this.existingChapters = {} as Record<string, boolean>;
 
         if( !this.status ) {
             this.updateStatus();
@@ -36,7 +55,7 @@ export default class Manga extends EventTarget {
     /**
      *
      */
-    setStatus( status ) {
+    setStatus( status: EntityStatus ): void {
         if( this.status !== status ) {
             this.status = status;
             this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
@@ -47,12 +66,12 @@ export default class Manga extends EventTarget {
     /**
      *
      */
-    updateStatus() {
+    updateStatus(): void {
         // look in the connector's list of existing mangas (found in directory), if this manga already exist
         if( !this.connector || !this.connector.existingMangas ) {
             return;
         }
-        let sanatizedTitle = Engine.Storage.sanatizePath ( this.title );
+        const sanatizedTitle = Engine.Storage.sanatizePath ( this.title );
         if( this.connector.existingMangas[sanatizedTitle] ) {
             this.setStatus( statusDefinitions.completed );
         } else {
@@ -60,17 +79,17 @@ export default class Manga extends EventTarget {
         }
     }
 
-    isChapterFileExisting( chapter ) {
+    isChapterFileExisting( chapter: Chapter ): boolean {
         if( !this.existingChapters ) {
             return false;
         }
-        return this.existingChapters[chapter.file.full]
+        return !!(this.existingChapters[chapter.file.full]
             || this.existingChapters[chapter.file.name + extensions.mp4]
             || this.existingChapters[chapter.file.name + extensions.mkv]
-            || this.existingChapters[chapter.file.name + extensions.m3u8];
+            || this.existingChapters[chapter.file.name + extensions.m3u8]);
     }
 
-    isChapterFileCached( fileName ) {
+    isChapterFileCached( fileName: string ): boolean {
         // use !! to convert result to bool
         return !!this.chapterCache.find( chapter => {
             return fileName === chapter.file.full
@@ -84,28 +103,28 @@ export default class Manga extends EventTarget {
      * Get all chapters for the manga.
      * Callback will be executed after completion and provided with a reference to the chapter list (empty on error).
      */
-    getChapters( callback ) {
+    getChapters( callback: (error: Error | null, chapters: Chapter[]) => void ): void {
         // find all chapter titles (sanitized) that are found in the directory for this manga
         Engine.Storage.getExistingChapterTitles( this )
             .catch( () => {
                 // Ignore chapter file reading errors (e.g. manga directory not exist yet)
-                return Promise.resolve( [] );
+                return Promise.resolve( {} as Record<string, boolean> );
             } )
-            .then( existingChapterTitles => {
+            .then( (existingChapterTitles: Record<string, boolean>) => {
                 this.existingChapters = existingChapterTitles;
                 // check if chapter list is cached and has access to online chapters
-                let onlineChapters = chapter => chapter.status === statusDefinitions.completed || chapter.status === statusDefinitions.available;
+                const onlineChapters = (chapter: Chapter) => chapter.status === statusDefinitions.completed || chapter.status === statusDefinitions.available;
                 return this.chapterCache && this.chapterCache.some(onlineChapters) ? this._getUpdatedChaptersFromCache() : this._getUpdatedChaptersFromWebsite();
             } )
             .then( () => {
-                for( let existingChapterTitle in this.existingChapters ) {
+                for( const existingChapterTitle in this.existingChapters ) {
                     if( !this.isChapterFileCached( existingChapterTitle ) ) {
-                        this.chapterCache.push( new Chapter( this, existingChapterTitle, existingChapterTitle, undefined, statusDefinitions.offline ) );
+                        this.chapterCache.push( new Chapter( this, existingChapterTitle, existingChapterTitle, undefined as unknown as string, statusDefinitions.offline ) );
                     }
                 }
                 callback( null, this.chapterCache );
             } )
-            .catch( error => {
+            .catch( (error: Error) => {
                 // TODO: remove log ... ?
                 console.warn( 'getChapters', error );
                 return callback( error, this.chapterCache );
@@ -115,7 +134,7 @@ export default class Manga extends EventTarget {
     /**
      *
      */
-    _getUpdatedChaptersFromCache() {
+    _getUpdatedChaptersFromCache(): Promise<Chapter[]> {
         if( this.chapterCache ) {
             this.chapterCache.forEach( chapter => {
                 chapter.updateStatus();
@@ -127,11 +146,11 @@ export default class Manga extends EventTarget {
     /**
      *
      */
-    _getUpdatedChaptersFromWebsite() {
+    _getUpdatedChaptersFromWebsite(): Promise<Chapter[]> {
         return this.connector.initialize()
             .then( () => {
-                return new Promise( ( resolve, reject ) => {
-                    this.connector._getChapterList( this, ( error, chapters ) => {
+                return new Promise<Array<{ id: string; title: string; language: string }>>( ( resolve, reject ) => {
+                    this.connector._getChapterList( this, ( error: Error | null, chapters: Array<{ id: string; title: string; language: string }> ) => {
                         if( error ) {
                             reject( error );
                         } else {
@@ -140,15 +159,15 @@ export default class Manga extends EventTarget {
                     } );
                 } );
             } )
-            .then( chapters => {
-                let chapterFormat = Engine.Settings.chapterTitleFormat.value;
+            .then( (chapters: Array<{ id: string; title: string; language: string }>) => {
+                const chapterFormat = Engine.Settings.chapterTitleFormat.value;
                 // de-serialize chapters into objects
                 this.chapterCache = chapters.map( chapter => {
                     return new Chapter( this, chapter.id, this.formatChapterTitle( chapter.title, chapterFormat, this.connector.getFormatRegex() ), chapter.language );
                 } );
                 return Promise.resolve( this.chapterCache );
             } )
-            .catch( error => {
+            .catch( (error: Error) => {
                 // TODO: remove log ... ?
                 console.warn( '_getUpdatedChaptersFromWebsite', error );
                 return Promise.resolve( this.chapterCache || [] );
@@ -158,7 +177,7 @@ export default class Manga extends EventTarget {
     /**
      *
      */
-    formatChapterTitle( title, format, formatRegex ) {
+    formatChapterTitle( title: string, format: string, formatRegex: FormatRegex ): string {
         //
         let result = format;
         // do not extract volume/chapter
@@ -167,28 +186,28 @@ export default class Manga extends EventTarget {
         }
 
         let name = title;
-        let reVol = formatRegex.volumeRegex;
-        let reCh = formatRegex.chapterRegex;
+        const reVol = formatRegex.volumeRegex;
+        const reCh = formatRegex.chapterRegex;
 
         // extract volume number
-        let volume = name.match( reVol );
+        let volume: string | RegExpMatchArray | null = name.match( reVol );
         if( volume && volume.length > 1 ) {
             volume = volume[1] ? volume[1] : '';
         } else {
             volume = '';
         }
         name = name.replace( reVol, '' ).trim();
-        volume = this._padNumberPrefixWithZeros( volume, 3 );
+        volume = this._padNumberPrefixWithZeros( volume as string, 3 );
 
         // extract chapter number
-        let chapter = name.match( reCh );
+        let chapter: string | RegExpMatchArray | null = name.match( reCh );
         if( chapter && chapter.length > 1 ) {
             chapter = chapter[1] ? chapter[1] : '';
         } else {
             chapter = '';
         }
         name = name.replace( reCh, '' ).trim();
-        chapter = this._padNumberPrefixWithZeros( chapter, 4 );
+        chapter = this._padNumberPrefixWithZeros( chapter as string, 4 );
 
         // apply extracted parts to format from user settings
         result = result.replace( /%VOL%/i, volume ); // volume number replacement
@@ -204,8 +223,8 @@ export default class Manga extends EventTarget {
     /**
      * Prepend the given text with zeros until the
      */
-    _padNumberPrefixWithZeros( text, digits ) {
-        let prefix = text.toString().match( /^\d+/ );
+    _padNumberPrefixWithZeros( text: string, digits: number ): string {
+        const prefix = text.toString().match( /^\d+/ );
         let count = prefix && prefix.length > 0 ? prefix[0].length : 0;
         count = Math.min( digits, count );
         return '0'.repeat( digits - count ) + text;

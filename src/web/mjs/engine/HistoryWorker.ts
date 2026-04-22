@@ -1,4 +1,4 @@
-const formats = {
+const formats: Record<string, string> = {
     none: '',
     json: '.json',
     csv:  '.csv'
@@ -6,7 +6,7 @@ const formats = {
 
 const statusDefinitions = {
     completed: 'completed', // chapter/manga that already exist on the users device
-};
+} as const;
 
 export default class HistoryWorker {
 
@@ -21,10 +21,10 @@ export default class HistoryWorker {
     /**
      *
      */
-    onDownloadStatusUpdated( evt ) {
-        let job = evt.detail;
+    onDownloadStatusUpdated( evt: CustomEvent ): void {
+        const job = evt.detail;
         if( job.status === statusDefinitions.completed) {
-            let entry = {
+            const entry = {
                 website: job.labels.connector,
                 manga: job.labels.manga,
                 chapter: job.labels.chapter,
@@ -37,8 +37,8 @@ export default class HistoryWorker {
     /**
      *
      */
-    appendEntry( data ) {
-        let entry = Object.assign( { _time: new Date().toISOString() }, data );
+    appendEntry( data: Record<string, unknown> ): void {
+        const entry = Object.assign( { _time: new Date().toISOString() }, data );
         if( Engine.Settings.downloadHistoryLogFormat.value !== formats.none ) {
             console.log( 'Log Download History:', Engine.Settings.downloadHistoryLogFormat.value );
             console.log( JSON.stringify( entry ) );

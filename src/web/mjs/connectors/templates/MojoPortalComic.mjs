@@ -1,5 +1,5 @@
 import Connector from '../../engine/Connector.mjs';
-import Manga from '../../engine/Manga.mjs';
+import Manga from '../../engine/Manga';
 
 // Template based on the TruyenChon comic theme for the mojoPortal CMS
 export default class MojoPortalComic extends Connector {

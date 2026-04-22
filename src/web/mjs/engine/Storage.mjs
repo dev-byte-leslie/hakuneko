@@ -1,5 +1,5 @@
-import EbookGenerator from './EbookGenerator.mjs';
-import Chapter from './Chapter.mjs';
+import EbookGenerator from './EbookGenerator';
+import Chapter from './Chapter';
 
 const extensions = {
     // chapter format

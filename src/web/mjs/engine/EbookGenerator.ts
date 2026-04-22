@@ -1,11 +1,11 @@
 export default class EbookGenerator {
 
-    static createMimetype() {
+    static createMimetype(): string {
         return 'application/epub+zip';
     }
 
     // TODO: use array and join with '\n' instead of string concatenation
-    static createContainerXML() {
+    static createContainerXML(): string {
         let content = '';
         content += '<?xml version="1.0" encoding="UTF-8" ?>\n';
         content += '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n';
@@ -16,7 +16,7 @@ export default class EbookGenerator {
         return content;
     }
 
-    static createStyleCSS() {
+    static createStyleCSS(): string {
         let content = '';
         content += 'img {\n';
         content += '    max-height: 100%;\n';
@@ -25,7 +25,7 @@ export default class EbookGenerator {
         return content;
     }
 
-    static createPageXHTML( pageName ) {
+    static createPageXHTML( pageName: string ): string {
         let content = '';
         content += '<?xml version="1.0" encoding="utf-8"?>\n';
         content += '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">\n';
@@ -43,7 +43,7 @@ export default class EbookGenerator {
         return content;
     }
 
-    static createContentOPF( uid, title, pages ) {
+    static createContentOPF( uid: string, title: string, pages: Array<{ img: string; mime: string; xhtml: string }> ): string {
         let content = '';
         content += '<?xml version="1.0" encoding="UTF-8"?>\n';
         content += '<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="' + uid + '" version="2.0">\n';
@@ -61,7 +61,7 @@ export default class EbookGenerator {
         });
         content += '    </manifest>\n';
         content += '    <spine toc="ncx">\n';
-        pages.forEach( ( page, index ) => {
+        pages.forEach( ( _page, index ) => {
             content += '        <itemref idref="XHTML_' + index + '"/>\n';
         });
         content += '    </spine>\n';
@@ -69,7 +69,7 @@ export default class EbookGenerator {
         return content;
     }
 
-    static createTocNCX ( uid, title, pages ) {
+    static createTocNCX ( uid: string, title: string, pages: Array<{ xhtml: string }> ): string {
         let content = '';
         content += '<?xml version="1.0" encoding="UTF-8"?>\n';
         content += '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">\n';

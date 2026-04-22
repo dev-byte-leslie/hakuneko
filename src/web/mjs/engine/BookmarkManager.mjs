@@ -1,4 +1,4 @@
-import Bookmark from './Bookmark.mjs';
+import Bookmark from './Bookmark';
 
 const events = {
     added: 'added',

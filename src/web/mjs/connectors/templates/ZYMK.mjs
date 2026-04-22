@@ -1,5 +1,5 @@
 import Connector from '../../engine/Connector.mjs';
-import Manga from '../../engine/Manga.mjs';
+import Manga from '../../engine/Manga';
 
 // almost exactly the same as MHXK, but as local installation
 export default class ZYMK extends Connector {

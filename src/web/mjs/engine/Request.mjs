@@ -1,4 +1,4 @@
-import HeaderGenerator from './HeaderGenerator.mjs';
+import HeaderGenerator from './HeaderGenerator';
 
 export default class Request {
 

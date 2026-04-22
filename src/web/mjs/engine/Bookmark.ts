@@ -1,6 +1,9 @@
 export default class Bookmark {
 
-    constructor( manga ) {
+    title: { connector: string; manga: string };
+    key: { connector: string | symbol; manga: string };
+
+    constructor( manga: { connector: { label: string; id: string | symbol }; title: string; id: string } ) {
         //this.id = Symbol();
         this.title = {
             connector: manga.connector.label,

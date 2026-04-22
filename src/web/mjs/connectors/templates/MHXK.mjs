@@ -1,5 +1,5 @@
 import Connector from '../../engine/Connector.mjs';
-import Manga from '../../engine/Manga.mjs';
+import Manga from '../../engine/Manga';
 
 // almost exactly the same as ZYMK, but as cloud service
 export default class MHXK extends Connector {
