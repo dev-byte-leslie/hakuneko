@@ -1,9 +1,27 @@
 import Manga from './Manga';
+import type Chapter from './Chapter';
+import type { IConnector } from './IConnector';
+import type { ConnectorConfig, ConnectorRequestOptions, MimeTypedBuffer, FormatRegex } from './types';
 
 /**
  * Base class for connector plugins
  */
-export default class Connector {
+export default class Connector implements IConnector {
+
+    id: string | symbol;
+    label: string;
+    tags: string[];
+    url: string;
+    isLocked: boolean | symbol;
+    initialized: boolean;
+    /** Whether this connector's domain should bypass certificate validation */
+    certBypass: boolean;
+    isUpdating: boolean;
+    mangaCache: Manga[] | undefined;
+    existingMangas: Record<string, boolean>;
+    existingManga: Record<string, boolean>;
+    requestOptions: ConnectorRequestOptions;
+    config?: ConnectorConfig;
 
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Request
     constructor() {
@@ -16,14 +34,13 @@ export default class Connector {
          */
         this.isLocked = false;
         this.initialized = false;
-        /** Whether this connector's domain should bypass certificate validation */
         this.certBypass = false;
         //
         this.isUpdating = false;
         //
         this.mangaCache = undefined;
         //
-        this.existingMangas = [];
+        this.existingMangas = [] as unknown as Record<string, boolean>;
         /*
          * initialize the default request options
          * these request options will also be used for download jobs (image/media stream downloads)
@@ -40,28 +57,28 @@ export default class Connector {
         this.requestOptions.headers.set('accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9');
     }
 
-    canHandleURI(uri) {
+    canHandleURI(uri: URL): boolean {
         return this.url === uri.origin;
     }
 
     /**
      *
      */
-    get icon() {
-        return '/img/connectors/' + this.id;
+    get icon(): string {
+        return '/img/connectors/' + String(this.id);
     }
 
     /**
      * See: this._initialize()
      * This method can be overwritten by the connector for a specific implementation of the initialization process
      */
-    async _initializeConnector() {
+    async _initializeConnector(): Promise<unknown> {
         let uri = new URL(this.url);
         let request = new Request(uri.href, this.requestOptions);
         return Engine.Request.fetchUI(request, '', 60000, true);// 60sec is default timeout from fetchUI, and we need images=true for DDOS-GUARD
     }
 
-    async initialize() {
+    async initialize(): Promise<void> {
         try {
             if(!this.initialized) {
                 await this._initializeConnector();
@@ -78,7 +95,7 @@ export default class Connector {
     /**
      * Find first manga with title that matches the given pattern (case-insensitive).
      */
-    findMatchingManga( pattern ) {
+    findMatchingManga( pattern: string ): Promise<Manga | undefined> {
         let needle = pattern.toLowerCase();
         return Engine.Storage.loadMangaList( this.id )
             .then( mangas => {
@@ -91,7 +108,7 @@ export default class Connector {
      * Update the manga list in the local storage.
      * Callback will be executed after completion and provided with a reference to the manga list (undefined on error).
      */
-    updateMangas( callback ) {
+    updateMangas( callback: (error: Error | null, mangas: Manga[] | undefined) => void ): void {
         if( this.isUpdating ) {
             return;
         }
@@ -139,12 +156,12 @@ export default class Connector {
      * Get all mangas for the connector.
      * Callback will be executed after completion and provided with a reference to the manga list (undefined on error).
      */
-    getMangas( callback ) {
+    getMangas( callback: (error: Error | null, mangas: Manga[] | undefined) => void ): Promise<Manga[]> {
         // find all manga titles (sanitized) that are found in the base directory for this connector
         return Engine.Storage.getExistingMangaTitles( this )
             .catch( () => {
                 // Ignore manga file reading errors (e.g. root directory not exist)
-                return Promise.resolve( [] );
+                return Promise.resolve( {} as Record<string, boolean> );
             } )
             .then( existingMangaTitles => {
                 this.existingManga = existingMangaTitles;
@@ -167,9 +184,9 @@ export default class Connector {
      * See: getMangaFromURI(uri)
      * This method can be overwritten by connector implementations.
      */
-    async _getMangaFromURI(uri) {
+    async _getMangaFromURI(uri: URL): Promise<Manga> {
         let id = uri.pathname + uri.search;
-        let title = 'Manga #' + id.split('').reduce((a, v) => a + a % 31 + v.charCodeAt(), id.length).toString(16).toUpperCase();
+        let title = 'Manga #' + id.split('').reduce((a, v) => a + a % 31 + v.charCodeAt(0), id.length).toString(16).toUpperCase();
         return new Manga(this, id, title);
     }
 
@@ -178,7 +195,7 @@ export default class Connector {
      * @param {URL} uri - ...
      * @returns {Promise<Manga>} - ...
      */
-    async getMangaFromURI(uri) {
+    async getMangaFromURI(uri: URL): Promise<Manga> {
         /*
          * TODO: try to find title in cached manga list first
          *       => this.getMangas().then( ... )
@@ -190,7 +207,7 @@ export default class Connector {
     /**
      *
      */
-    _getUpdatedMangasFromCache() {
+    _getUpdatedMangasFromCache(): Promise<Manga[] | undefined> {
         if( this.mangaCache ) {
             this.mangaCache.forEach( manga => {
                 manga.updateStatus();
@@ -202,7 +219,7 @@ export default class Connector {
     /**
      *
      */
-    _getUpdatedMangasFromFile() {
+    _getUpdatedMangasFromFile(): Promise<Manga[]> {
         // get manga list from the local storage and cache them
         return Engine.Storage.loadMangaList( this.id )
             .then( mangas => {
@@ -222,7 +239,7 @@ export default class Connector {
     /**
      * Return a promise that will be resolved after the given amount of time in milliseconds
      */
-    wait( time ) {
+    wait( time: number ): Promise<void> {
         return new Promise( resolve => {
             setTimeout( resolve, time );
         } );
@@ -235,7 +252,7 @@ export default class Connector {
      * Returns a key required to unlock the connector (only the owner with the key can unlock the connector)
      * or null if the connector is already locked by a different owner.
      */
-    lock() {
+    lock(): symbol | null {
         if( this.isLocked ) {
             return null;
         }
@@ -246,13 +263,13 @@ export default class Connector {
     /**
      *
      */
-    unlock( key ) {
+    unlock( key: symbol | boolean ): void {
         if( this.isLocked === key ) {
             this.isLocked = false;
         }
     }
 
-    adLinkDecrypt(element) {
+    adLinkDecrypt(element: HTMLAnchorElement): void {
         let uri = new URL(element.href);
         if(uri.hostname === 'nofil.net' && element.pathname.includes('safeme')) {
             element.href = uri.searchParams.get('url');
@@ -262,15 +279,15 @@ export default class Connector {
     /**
      * Helper function to decrypt the protected email within the given DOM element.
      */
-    cfMailDecrypt( element ) {
+    cfMailDecrypt( element: HTMLElement ): void {
         [...element.querySelectorAll( 'span[data-cfemail]' )].forEach( ( span ) => {
             let encrypted = span.getAttribute( 'data-cfemail' ); // span.dataset.cfmail
             if( encrypted ) {
                 // decrypt mail
                 let decrypted = '';
-                let key = '0x' + encrypted.substr(0, 2) | 0;
+                let key = parseInt('0x' + encrypted.substr(0, 2)) | 0;
                 for ( let i=2; i<encrypted.length; i+=2) {
-                    decrypted += '%' + ('0' + ('0x' + encrypted.substr(i, 2) ^ key).toString(16)).slice(-2);
+                    decrypted += '%' + ('0' + (parseInt('0x' + encrypted.substr(i, 2)) ^ key).toString(16)).slice(-2);
                 }
                 span.replaceWith( decodeURIComponent( decrypted ) );
             }
@@ -316,10 +333,11 @@ export default class Connector {
      * Revert the expansion of relative links regarding the base url,
      * or leave the absolute url if the link seems not to been expanded.
      */
-    getRelativeLink( element ) {
-        if( element.href || element.src ) {
+    getRelativeLink( element: HTMLElement ): string | undefined {
+        const el = element as any;
+        if( el.href || el.src ) {
             let baseURI = new URL( this.url );
-            let refURI = new URL( element.href || element.src );
+            let refURI = new URL( el.href || el.src );
 
             // case: element.href => protocol + host expanded to window location (e.g. /sub/page.html => protocol://window/sub/page.html)
             if( refURI.origin === window.location.origin ) {
@@ -343,12 +361,13 @@ export default class Connector {
                 return refURI.href;
             }
         }
+        return undefined;
     }
 
     /**
      *
      */
-    getAbsolutePath( reference, base ) {
+    getAbsolutePath( reference: URL | string | HTMLElement, base: URL | string ): string {
         let baseURI;
         switch( true ) {
             case base instanceof URL:
@@ -385,7 +404,7 @@ export default class Connector {
     /**
      *
      */
-    getRootRelativeOrAbsoluteLink( reference, base ) {
+    getRootRelativeOrAbsoluteLink( reference: URL | string | HTMLElement, base: string ): string {
         let uri = new URL( this.getAbsolutePath( reference, base ) );
         if( uri.hostname === new URL( base ).hostname ) {
             // same domain => return only path
@@ -403,7 +422,7 @@ export default class Connector {
      * NOTE: When loading content into DOM, all links without a full qualified domain name will be expanded using the hostname of this app
      *       => do not forget to remove this prefix from the links!
      */
-    createDOM( content, replaceImageTags, clearIframettributes ) {
+    createDOM( content: string, replaceImageTags?: boolean, clearIframettributes?: boolean ): HTMLElement {
         replaceImageTags = replaceImageTags !== undefined ? replaceImageTags : true;
         clearIframettributes = clearIframettributes !== undefined ? clearIframettributes : true;
         if( replaceImageTags ) {
@@ -424,7 +443,7 @@ export default class Connector {
      * Get the content for the given Request
      * and get all elements matching the given CSS selector.
      */
-    async fetchDOM(request, selector, retries, encoding) {
+    async fetchDOM(request: string | URL | Request, selector?: string, retries?: number, encoding?: string): Promise<Element[] | HTMLElement> {
         retries = retries || 0;
         if(typeof request === 'string') {
             request = new Request(request, this.requestOptions);
@@ -450,7 +469,7 @@ export default class Connector {
     /**
      *
      */
-    fetchJSON( request, retries ) {
+    fetchJSON( request: string | URL | Request, retries?: number ): Promise<unknown> {
         retries = retries || 0;
         if( typeof request === 'string' ) {
             request = new Request( request, this.requestOptions );
@@ -468,16 +487,16 @@ export default class Connector {
                 if( response.status === 200 ) {
                     return response.json();
                 }
-                throw new Error( `Failed to receive content from "${request.url}" (status: ${response.status}) - ${response.statusText}` );
+                throw new Error( `Failed to receive content from "${(request as Request).url}" (status: ${response.status}) - ${response.statusText}` );
             } );
     }
 
-    fetchGraphQL(request, operationName, query, variables) {
+    fetchGraphQL(request: string | URL, operationName: string, query: string, variables: Record<string, unknown>): Promise<unknown> {
         if( typeof request === 'string' ) {
             request = new URL(request);
         }
 
-        const graphQLRequest = new Request(request.href ? request.href : request.url, {
+        const graphQLRequest = new Request(request.href, {
             ...this.requestOptions,
             method: 'POST',
             body: JSON.stringify({
@@ -490,17 +509,18 @@ export default class Connector {
 
         return this.fetchJSON(graphQLRequest)
             .then(data => {
-                if (data.errors) {
-                    throw new Error(this.label + ' errors: ' + data.errors.map(error => error.message).join('\n'));
+                const result = data as any;
+                if (result.errors) {
+                    throw new Error(this.label + ' errors: ' + result.errors.map((error: any) => error.message).join('\n'));
                 }
-                if (!data.data) {
+                if (!result.data) {
                     throw new Error(this.label + 'No data available!');
                 }
-                return data.data;
+                return result.data;
             });
     }
 
-    async fetchRegex(request, regex) {
+    async fetchRegex(request: Request, regex: RegExp): Promise<string[]> {
         if(!/\/[imsuy]*g[imsuy]*$/.test('' + regex)) {
             throw new Error('The provided RegExp must contain the global "g" modifier!');
         }
@@ -545,7 +565,7 @@ export default class Connector {
      * } );
      */
 
-    async fetchPROTO(request, protoTypes, rootType) {
+    async fetchPROTO(request: Request, protoTypes: string, rootType: string): Promise<unknown> {
         let Root = (await protobuf.load(protoTypes)).lookupType(rootType);
         let response = await fetch(request);
         let data = await response.arrayBuffer();
@@ -556,11 +576,11 @@ export default class Connector {
     /**
      *
      */
-    createConnectorURI( payload ) {
+    createConnectorURI( payload: unknown ): string {
         let data = JSON.stringify( payload );
         let bytes = CryptoJS.enc.Utf8.parse( data );
         let encoded = CryptoJS.enc.Base64.stringify( bytes );
-        let uri = new URL( 'connector://' + this.id );
+        let uri = new URL( 'connector://' + String(this.id) );
         uri.searchParams.set( 'payload', encoded );
         return uri.href;
     }
@@ -571,7 +591,7 @@ export default class Connector {
      * Older connector implementations are implementing/overriding this method.
      * @param callback
      */
-    async _getMangaList(callback) {
+    async _getMangaList(callback: (error: Error | null, mangas: Manga[] | undefined) => void): Promise<void> {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
@@ -590,7 +610,7 @@ export default class Connector {
      * @param manga
      * @param callback
      */
-    async _getChapterList(manga, callback) {
+    async _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Chapter[] | undefined) => void): Promise<void> {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
@@ -610,7 +630,7 @@ export default class Connector {
      * @param chapter
      * @param callback
      */
-    async _getPageList(manga, chapter, callback) {
+    async _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | object | undefined) => void): Promise<void> {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
@@ -627,7 +647,7 @@ export default class Connector {
      * New connector implementations must implementing/overriding this method.
      * @returns {Manga[]} - A list of mangas
      */
-    async _getMangas() {
+    async _getMangas(): Promise<Manga[]> {
         throw new Error('Not implemented!');
     }
 
@@ -639,7 +659,7 @@ export default class Connector {
      * @returns {Chapter[]} - A list of chapters
      */
     // eslint-disable-next-line no-unused-vars
-    async _getChapters(manga) {
+    async _getChapters(manga: Manga): Promise<Chapter[]> {
         throw new Error('Not implemented!');
     }
 
@@ -651,14 +671,14 @@ export default class Connector {
      * @returns {Promise<(string[]|Object)>} - A list of image links (USVString) or a media type
      */
     // eslint-disable-next-line no-unused-vars
-    async _getPages(chapter) {
+    async _getPages(chapter: Chapter): Promise<string[] | object> {
         throw new Error('Not implemented!');
     }
 
     /**
      *
      */
-    handleConnectorURI( uri ) {
+    handleConnectorURI( uri: URL ): Promise<MimeTypedBuffer> {
         let encoded = uri.searchParams.get( 'payload' );
         let bytes = CryptoJS.enc.Base64.parse( encoded );
         let data = bytes.toString( CryptoJS.enc.Utf8 );
@@ -670,15 +690,15 @@ export default class Connector {
      * Return a promise that resolves with a mime typed buffer on succes,
      * or a promise that rejects with an error.
      */
-    async _handleConnectorURI(payload) {
+    async _handleConnectorURI(payload: string): Promise<MimeTypedBuffer> {
         /*
          * TODO: only perform requests when from download manager
          * or when from browser for preview and selected chapter matches
          */
         let request = new Request(payload, this.requestOptions);
         let response = await fetch(request);
-        let data = await response.blob();
-        data = await this._blobToBuffer(data);
+        let blob = await response.blob();
+        let data = await this._blobToBuffer(blob);
         this._applyRealMime(data);
         return data;
     }
@@ -687,7 +707,7 @@ export default class Connector {
      * Protected helper function to convert a Blob to a MimeTypedBuffer
      * https://github.com/electron/electron/blob/master/docs/api/protocol.md#protocolregisterbufferprotocolscheme-handler-completion
      */
-    async _blobToBuffer(blob) {
+    async _blobToBuffer(blob: Blob): Promise<MimeTypedBuffer> {
         return new Promise((resolve, reject) => {
             let reader = new FileReader();
             reader.onload = event => {
@@ -707,7 +727,7 @@ export default class Connector {
     /**
      * Apply the real mime type to the MimeTypedBuffer (based on file signature).
      */
-    _applyRealMime( data ) {
+    _applyRealMime( data: MimeTypedBuffer ): void {
         // WEBP [52 49 46 46 . . . . 57 45 42 50]
         if( data.mimeType !== 'image/webp' && data.data[8] === 0x57 && data.data[9] === 0x45 && data.data[10] === 0x42 && data.data[11] === 0x50 ) {
             console.warn( 'Provided mime type "' + data.mimeType + '" does not match the file signature and was replaced by "image/webp"!' );
@@ -740,7 +760,7 @@ export default class Connector {
         }
     }
 
-    getFormatRegex() {
+    getFormatRegex(): FormatRegex {
         return {
             chapterRegex: /\s*(?:^|ch\.?|ep\.?|chapter|chapitre|Bölüm|Chap|Chương|ตอนที่|Kapitel|Capitolo|Rozdział|Глава|Cap[ií]tulo|cap|[ée]pisode|Page|N[゜°]|DAY|#)\s?:?\s*([\d.?\-?v?]+)(?:\s|:|$)+/i, // $ not working in character groups => [\s\:$]+ does not work
             volumeRegex: /\s*(?:vol\.?|volume|Sezon|Том|Band|Cilt|tome)\s*(\d+)/i

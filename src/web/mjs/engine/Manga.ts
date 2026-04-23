@@ -22,9 +22,12 @@ interface MangaConnector {
     id: string | symbol;
     label: string;
     existingMangas: Record<string, boolean>;
+    isLocked: boolean | symbol;
+    requestOptions: RequestInit;
+    config?: Record<string, { value: unknown }>;
     initialize(): Promise<void>;
-    _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language: string }>) => void): void;
-    _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | HLSEpisode | VideoEpisode) => void): void;
+    _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language: string }>) => void): void | Promise<void>;
+    _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | object | undefined) => void): void | Promise<void>;
     getFormatRegex(): FormatRegex;
 }
 

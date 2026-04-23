@@ -3,6 +3,12 @@ import type { EventListenerName, HLSEpisode, VideoEpisode } from './types';
 declare global {
     const Engine: EngineGlobal;
     const EventListener: Record<string, EventListenerName>;
+    /** CryptoJS is loaded as a global script tag in the Electron renderer */
+    const CryptoJS: any;
+    /** protobufjs is loaded as a global script tag in the Electron renderer */
+    const protobuf: any;
+    /** Node.js Buffer is available in the Electron renderer process */
+    const Buffer: { from(data: any, encoding?: string): Uint8Array };
     interface Window {
         hakunekoAPI: HakunekoAPI;
         Engine: EngineGlobal;
@@ -17,13 +23,24 @@ interface EngineGlobal {
         loadChapterPages(chapter: unknown): Promise<string[] | HLSEpisode | VideoEpisode>;
         getExistingChapterTitles(manga: unknown): Promise<Record<string, boolean>>;
         getExistingMangaTitles(connector: unknown): Promise<Record<string, boolean>>;
+        loadMangaList(id: string | symbol): Promise<Array<{ id: string; title: string }>>;
+        saveMangaList(id: string | symbol, mangas: Array<{ id: string; title: string }>): Promise<void>;
+        saveChapterPages(chapter: unknown, content: Blob[]): Promise<void>;
+        saveChapterFileM3U8(chapter: unknown, file: { name: string; data: string | Uint8Array }): Promise<void>;
+        saveVideoChunkTemp(file: { name: string; data: Uint8Array }): Promise<string>;
+        muxPlaylistM3U8(chapter: unknown, command: string): Promise<void>;
+        concatVideoChunks(chapter: unknown, tempFiles: string[]): Promise<void>;
     };
     Settings: {
         chapterFormat: { value: string };
         chapterTitleFormat: { value: string };
         downloadHistoryLogFormat: { value: string };
+        useSequentialMediaDownloads: { value: boolean };
+        ignoreErrorOnDownload: { value: boolean };
     };
-    Request: unknown;
+    Request: {
+        fetchUI(request: Request, script: string, timeout: number, images: boolean): Promise<unknown>;
+    };
     Blacklist: unknown;
     Connectors: unknown;
     ComicInfoGenerator: unknown;

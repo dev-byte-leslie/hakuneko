@@ -1,8 +1,11 @@
+import type Chapter from './Chapter';
+import type { EntityStatus, HLSEpisode, VideoEpisode } from './types';
+
 const events = {
     updated: 'updated'
-};
+} as const;
 
-const statusDefinitions = {
+const statusDefinitions: Record<string, EntityStatus> = {
     unavailable: 'unavailable', // chapter/manga that cannot be downloaded
     offline: 'offline', // chapter/manga that cannot be downloaded, but exist in manga directory
     available: 'available', // chapter/manga that can be added to the download list
@@ -12,10 +15,23 @@ const statusDefinitions = {
     failed: 'failed' // chapter/manga that failed to be downloaded
 };
 
+/** Shape of a single HLS segment packet used during playlist download */
+type HLSPacket = { needle: string; source: URL; target: string };
+
 export default class DownloadJob extends EventTarget {
 
+    id: symbol;
+    chapter: Chapter;
+    labels: { connector: string; manga: string; chapter: string };
+    requestOptions: RequestInit;
+    chunkSize: number;
+    throttle: number;
+    status: EntityStatus | undefined;
+    progress: number;
+    errors: Error[];
+
     // TODO: use dependency injection instead of globals for Engine.Storage, Enums
-    constructor( chapter ) {
+    constructor( chapter: Chapter ) {
         super();
         this.id = Symbol();
         this.chapter = chapter;
@@ -27,7 +43,7 @@ export default class DownloadJob extends EventTarget {
         this.requestOptions = chapter.manga.connector.requestOptions || {};
         // TODO: initialize requestOptions.headers = new Headers() if not set
         this.chunkSize = 8388608; // 8 MB
-        this.throttle = chapter.manga.connector.config && chapter.manga.connector.config['throttle'] ? chapter.manga.connector.config['throttle'].value : 0;
+        this.throttle = chapter.manga.connector.config && chapter.manga.connector.config['throttle'] ? chapter.manga.connector.config['throttle'].value as number : 0;
         this.status = undefined;
         this.progress = 0;
         this.errors = [];
@@ -36,7 +52,7 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    isSame( job ) {
+    isSame( job: DownloadJob ): boolean {
         // comparing chapter objects works, because chapters for each manga are cached
         return this.chapter === job.chapter;
         //return ( this.chapter.id === job.chapter.id && this.chapter.manga.id === job.chapter.manga.id && this.chapter.manga.connector.id === job.chapter.manga.connector.id );
@@ -45,7 +61,7 @@ export default class DownloadJob extends EventTarget {
     /**
      * Apply a new status for the job and publish the corresponding event.
      */
-    setStatus( status ) {
+    setStatus( status: EntityStatus ): void {
         if( status !== this.status ) {
             this.status = status;
             this.chapter.setStatus( status );
@@ -57,7 +73,7 @@ export default class DownloadJob extends EventTarget {
     /**
      * Apply a new status for the job and publish the corresponding event.
      */
-    setProgress( progress ) {
+    setProgress( progress: number ): void {
         if( progress !== this.progress ) {
             this.progress = progress;
             this.dispatchEvent( new CustomEvent( events.updated, { detail: this } ) );
@@ -67,7 +83,7 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    downloadPages( directory, callback ) {
+    downloadPages( directory: string, callback: () => void ): void {
         this.setStatus( statusDefinitions.downloading );
         this.chapter.getPages( ( error, data ) => {
             if( !error && data ) {
@@ -77,13 +93,13 @@ export default class DownloadJob extends EventTarget {
                     return;
                 }
                 // anime playlist
-                if( data.mirrors instanceof Array ) {
-                    this._downloadPlaylistHLS( data, directory, callback );
+                if( (data as HLSEpisode).mirrors instanceof Array ) {
+                    this._downloadPlaylistHLS( data as HLSEpisode, directory, callback );
                     return;
                 }
                 // anime stream
-                if( typeof data.video === 'string' ) {
-                    this._downloadVideoStream( data, directory, callback );
+                if( typeof (data as VideoEpisode).video === 'string' ) {
+                    this._downloadVideoStream( data as VideoEpisode, directory, callback );
                     return;
                 }
             }
@@ -99,11 +115,11 @@ export default class DownloadJob extends EventTarget {
         } );
     }
 
-    async _wait(delay) {
+    async _wait(delay: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    async _downloadPages(pages, directory, callback) {
+    async _downloadPages(pages: string[], directory: string, callback: () => void): Promise<void> {
         try {
             const content = Engine.Settings.useSequentialMediaDownloads.value ? await this._downloadPagesSequential(pages) : await this._downloadPagesConcurrent(pages);
             await Engine.Storage.saveChapterPages(this.chapter, content);
@@ -119,8 +135,8 @@ export default class DownloadJob extends EventTarget {
         }
     }
 
-    async _downloadPagesSequential(pages) {
-        const result = [];
+    async _downloadPagesSequential(pages: string[]): Promise<Blob[]> {
+        const result: Blob[] = [];
         for(let page of pages) {
             await this._wait(this.throttle);
             const response = await fetch(page, this.requestOptions);
@@ -133,7 +149,7 @@ export default class DownloadJob extends EventTarget {
         return result;
     }
 
-    async _downloadPagesConcurrent(pages) {
+    async _downloadPagesConcurrent(pages: string[]): Promise<Blob[]> {
         const throttle = this.throttle || 50;
         // get data for all pages of chapter
         let promises = pages.map(async (page, index) => {
@@ -155,14 +171,14 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    _downloadPlaylistHLS( episode, directory, callback ) {
-        let ffmpeg = {
+    _downloadPlaylistHLS( episode: HLSEpisode, directory: string, callback: () => void ): void {
+        let ffmpeg: { command: string[]; inputs: string[]; maps: string[]; metas: string[] } = {
             command: ['ffmpeg', '-loglevel', 'error', '-allowed_extensions', 'ALL', '-protocol_whitelist', 'concat,file,http,https,tcp,tls,crypto'],
             inputs: [],
             maps: ['-map', '0:v', '-map', '0:a'],
             metas: []
         };
-        let playlistURL = undefined;
+        let playlistURL: string | undefined = undefined;
         let promises = episode.mirrors.map( mirror => {
             let request = new Request(mirror, this.requestOptions);
             if(episode.referer) {
@@ -186,9 +202,9 @@ export default class DownloadJob extends EventTarget {
         Promise.all( promises )
         // swap the rejected promise back to its initial resolved state
             .catch( data => Promise.resolve( data ) )
-            .then( playlist => {
-                let packets = [...new Set(playlist.match(/^[^\s#].+$/gm))];
-                packets = packets.map((packet, index) => {
+            .then( (playlist: string) => {
+                const matchStrings = [...new Set(playlist.match(/^[^\s#].+$/gm))] as string[];
+                let packets: HLSPacket[] = matchStrings.map((packet: string, index: number) => {
                     return {
                         needle: packet,
                         source: new URL(packet, playlistURL),
@@ -215,8 +231,8 @@ export default class DownloadJob extends EventTarget {
                     } );
             } )
         // download all packets
-            .then(packets => {
-                const packetDownload = async (packet, delay) => {
+            .then( (packets: HLSPacket[]) => {
+                const packetDownload = async (packet: HLSPacket, delay: number): Promise<void> => {
                     await this._wait(delay);
                     const request = new Request(packet.source, this.requestOptions);
                     if(episode.referer) {
@@ -224,7 +240,7 @@ export default class DownloadJob extends EventTarget {
                     }
                     const response = await fetch(request);
                     if(response.status !== 200) {
-                        throw new Error(`Packet "${packet.link}" returned status: '${response.status}' - '${response.statusText}`);
+                        throw new Error(`Packet "${packet.target}" returned status: '${response.status}' - '${response.statusText}`);
                     }
                     const data = await response.arrayBuffer();
                     await Engine.Storage.saveChapterFileM3U8(this.chapter, { name: packet.target, data: new Uint8Array(data) });
@@ -242,7 +258,7 @@ export default class DownloadJob extends EventTarget {
                         const throttle = this.throttle || 250;
                         return packetDownload(packet, index * throttle);
                     });
-                    return Promise.all(promises);
+                    return Promise.all(promises).then(() => {});
                 }
             })
         // download all subtitles
@@ -309,7 +325,7 @@ export default class DownloadJob extends EventTarget {
 
     // TODO: read from the stream directly to the file instead of processing chunks
     // => https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream | response.body.pipe(...)
-    _downloadVideoStream( episode, directory, callback ) {
+    _downloadVideoStream( episode: VideoEpisode, directory: string, callback: () => void ): void {
         let basename = Date.now(); // episode.video.split( '/' ).pop();
         this.requestOptions['method'] = 'HEAD';
         let request = new Request( episode.video, this.requestOptions );
@@ -332,7 +348,7 @@ export default class DownloadJob extends EventTarget {
                 return Promise.resolve( parseInt( size ) );
             } )
             .then( size => {
-                let fn = ( chunks, index, files ) => {
+                let fn = ( chunks: string[], index?: number, files?: string[] ): Promise<string[]> => {
                     index = index || 0;
                     files = files || [];
                     if( index >= chunks.length ) {
@@ -383,15 +399,13 @@ export default class DownloadJob extends EventTarget {
     /**
      *
      */
-    _splitRange( size ) {
+    _splitRange( size: number ): string[] {
         let part = this.chunkSize;
-        let chunks = Math.ceil( size / part );
-        chunks = [...new Array( chunks ).keys()];
-        chunks = chunks.map(index => {
+        let chunkCount = Math.ceil( size / part );
+        return [...new Array( chunkCount ).keys()].map(index => {
             let start = index * part;
             let end = start + part - 1;
             return start + '-' + Math.min( end, size - 1 );
-        } );
-        return chunks;
+        });
     }
 }

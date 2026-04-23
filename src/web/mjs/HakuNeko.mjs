@@ -1,12 +1,12 @@
 import Enums from './engine/Enums';
-import Connector from './engine/Connector.mjs';
+import Connector from './engine/Connector';
 
 import Blacklist from './engine/Blacklist';
 import BookmarkImporter from './engine/BookmarkImporter.mjs';
 import BookmarkManager from './engine/BookmarkManager.mjs';
 import ChaptermarkManager from './engine/ChaptermarkManager.mjs';
 import Connectors from './engine/Connectors.mjs';
-import DownloadManager from './engine/DownloadManager.mjs';
+import DownloadManager from './engine/DownloadManager';
 import ComicInfoGenerator from './engine/ComicInfoGenerator';
 //import HistoryWorker from './engine/HistoryWorker'
 import Request from './engine/Request.mjs';
