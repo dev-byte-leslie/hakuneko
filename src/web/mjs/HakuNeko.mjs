@@ -1,19 +1,19 @@
 import Enums from './engine/Enums';
-import Connector from './engine/Connector.mjs';
+import Connector from './engine/Connector';
 
 import Blacklist from './engine/Blacklist';
-import BookmarkImporter from './engine/BookmarkImporter.mjs';
-import BookmarkManager from './engine/BookmarkManager.mjs';
-import ChaptermarkManager from './engine/ChaptermarkManager.mjs';
-import Connectors from './engine/Connectors.mjs';
-import DownloadManager from './engine/DownloadManager.mjs';
+import BookmarkImporter from './engine/BookmarkImporter';
+import BookmarkManager from './engine/BookmarkManager';
+import ChaptermarkManager from './engine/ChaptermarkManager';
+import Connectors from './engine/Connectors';
+import DownloadManager from './engine/DownloadManager';
 import ComicInfoGenerator from './engine/ComicInfoGenerator';
 //import HistoryWorker from './engine/HistoryWorker'
-import Request from './engine/Request.mjs';
-import Settings from './engine/Settings.mjs';
-import Storage from './engine/Storage.mjs';
+import Request from './engine/Request';
+import Settings from './engine/Settings';
+import Storage from './engine/Storage';
 import Version from './VersionInfo.mjs';
-import DiscordPresence from './engine/DiscordPresence.mjs';
+import DiscordPresence from './engine/DiscordPresence';
 
 export default class HakuNeko {
 

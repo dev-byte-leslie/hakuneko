@@ -1,26 +1,31 @@
-import DownloadJob from './DownloadJob.mjs';
+import DownloadJob from './DownloadJob';
+import type Chapter from './Chapter';
+import type { EntityStatus } from './types';
 
-const statusDefinitions = {
+const statusDefinitions: Record<string, EntityStatus> = {
     queued: 'queued', // chapter/manga that is queued for download to the users device
 };
 
 export default class DownloadManager extends EventTarget {
 
+    queue: Record<string | symbol, DownloadJob[] & { activeCount: number }>;
+    worker: ReturnType<typeof setInterval>;
+
     constructor() {
         super();
-        this.queue = [];
+        this.queue = [] as unknown as Record<string | symbol, DownloadJob[] & { activeCount: number }>;
         this.worker = setInterval( this.processQueue.bind( this ), 250 );
     }
 
     /**
      * Add a new job to the download queue.
      */
-    addDownload( chapter ) {
+    addDownload( chapter: Chapter ): void {
         let manga = chapter.manga;
         let connector = manga.connector;
 
         if( !this.queue[connector.id] ) {
-            this.queue[connector.id] = [];
+            this.queue[connector.id] = [] as unknown as DownloadJob[] & { activeCount: number };
             this.queue[connector.id].activeCount = 0;
         }
         // create a job for the chapter and add the job to the download queue (if not already exist)
@@ -39,7 +44,7 @@ export default class DownloadManager extends EventTarget {
     /**
      *
      */
-    processQueue() {
+    processQueue(): void {
         // find a connector in queue that has downloads available and is not locked
         for( let connectorID in this.queue ) {
             // check if queue is not empty, there are no active jobs for this connector and the connector is not locked internally through other requests

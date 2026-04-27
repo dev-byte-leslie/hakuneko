@@ -1,15 +1,21 @@
 import Bookmark from './Bookmark';
+import type BookmarkImporter from './BookmarkImporter';
+import type Settings from './Settings';
 
 const events = {
     added: 'added',
     removed: 'removed',
     changed: 'changed'
-};
+} as const;
 
 export default class BookmarkManager extends EventTarget {
 
+    bookmarks: Bookmark[];
+    _settings: Settings;
+    _bookmarkImporter: BookmarkImporter;
+
     // TODO: use dependency injection instead of globals for Engine.Connetors, Engine.Storage
-    constructor(settings, bookmarkImporter) {
+    constructor(settings: Settings, bookmarkImporter: BookmarkImporter) {
         super();
         this.bookmarks = [];
         this._settings = settings;
@@ -18,12 +24,12 @@ export default class BookmarkManager extends EventTarget {
         this._settings.addEventListener('saved', this._onSettingsChanged.bind(this));
     }
 
-    _onSettingsChanged() {
+    _onSettingsChanged(): void {
         // TODO: only save bookmarks if the bookmark directory has changed
         this.saveProfile('default', undefined);
     }
 
-    async importBookmarks( file ) {
+    async importBookmarks(file: File): Promise<void> {
         let bookmarks = await this._bookmarkImporter.importBookmarks( file );
         let added = '';
         let exists = '';
@@ -42,7 +48,7 @@ export default class BookmarkManager extends EventTarget {
             // is supported and can be added
             if( supported && !exist ) {
                 added += `<tr><td style="color: #808080; font-weight: bold; padding-right: 1em;">${ bookmark.title.connector }</td><td>${ bookmark.title.manga }</td></tr>`;
-                this.bookmarks.push( bookmark );
+                this.bookmarks.push( bookmark as Bookmark );
             }
         } );
         this.bookmarks.sort( this.compareBookmarks );
@@ -50,10 +56,7 @@ export default class BookmarkManager extends EventTarget {
         this._showMergeResults( dropped, exists, added );
     }
 
-    /**
-     *
-     */
-    _showMergeResults( droppedHTML, existsHTML, addedHTML ) {
+    _showMergeResults(droppedHTML: string, existsHTML: string, addedHTML: string): void {
         let content = `<!DOCTYPE html>
         <html>
         <head>
@@ -120,23 +123,23 @@ export default class BookmarkManager extends EventTarget {
      * Callback will be executed after the data has been loaded.
      * Callback will be provided with an error (or null if no error).
      */
-    loadProfile( profile, callback ) {
+    loadProfile(profile: string, callback: ((error: Error | null) => void) | undefined): void {
         Engine.Storage.loadBookmarks( 'bookmarks' )
             .then( data => {
                 try {
-                    if( !data || !data.length || data.length === 0 ) {
+                    if( !data || !(data as unknown[]).length || (data as unknown[]).length === 0 ) {
                         throw new Error( 'Invalid bookmark list!' );
                     }
-                    this.bookmarks = data;
+                    this.bookmarks = data as Bookmark[];
                     this.bookmarks.sort( this.compareBookmarks );
                     this.dispatchEvent( new CustomEvent( events.changed, { detail: this.bookmarks } ) );
                     if( typeof callback === typeof Function ) {
                         callback( null );
                     }
                 } catch( e ) {
-                    console.error( 'Failed to load bookmarks:', e.message );
+                    console.error( 'Failed to load bookmarks:', (e as Error).message );
                     if( typeof callback === typeof Function ) {
-                        callback( e );
+                        callback( e as Error );
                     }
                 }
             } )
@@ -152,7 +155,7 @@ export default class BookmarkManager extends EventTarget {
      * Callback will be executed after the data has been saved.
      * Callback will be provided with an error (or null if no error).
      */
-    saveProfile( profile, callback ) {
+    saveProfile(profile: string, callback: ((error: Error | null) => void) | undefined): void {
         Engine.Storage.saveBookmarks( 'bookmarks', this.bookmarks, 2 )
             .then( () => {
                 this.dispatchEvent( new CustomEvent( events.changed, { detail: this.bookmarks } ) );
@@ -168,10 +171,7 @@ export default class BookmarkManager extends EventTarget {
             } );
     }
 
-    /**
-     *
-     */
-    addBookmark( manga ) {
+    addBookmark(manga: { connector: { label: string; id: string | symbol }; title: string; id: string }): boolean {
         if( !manga || ! manga.connector ) {
             return false;
         }
@@ -189,10 +189,7 @@ export default class BookmarkManager extends EventTarget {
         return false;
     }
 
-    /**
-     *
-     */
-    deleteBookmark( bookmark ) {
+    deleteBookmark(bookmark: Bookmark): boolean {
         let index = this.bookmarks.findIndex( ( b ) => {
             return b.key.manga === bookmark.key.manga && b.key.connector === bookmark.key.connector;
         });
@@ -208,7 +205,7 @@ export default class BookmarkManager extends EventTarget {
     /**
      * Helper function for sorting
      */
-    compareBookmarks( a, b ) {
+    compareBookmarks(a: Bookmark, b: Bookmark): number {
         return a.title.manga.toLowerCase() < b.title.manga.toLowerCase() ? -1 : 1;
     }
 }
