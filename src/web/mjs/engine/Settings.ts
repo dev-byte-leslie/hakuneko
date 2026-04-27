@@ -1,7 +1,9 @@
+import type { SettingDef } from './types';
+
 const events = {
     loaded: 'loaded',
     saved: 'saved'
-};
+} as const;
 
 const extensions = {
     // chapter formats
@@ -13,13 +15,13 @@ const extensions = {
     none: '',
     json: '.json',
     csv: '.csv'
-};
+} as const;
 
 const mimes = {
     webp: 'image/webp',
     jpeg: 'image/jpeg',
     png: 'image/png'
-};
+} as const;
 
 const types = {
     disabled: 'disabled',
@@ -30,9 +32,28 @@ const types = {
     checkbox: 'checkbox',
     file: 'file',
     directory: 'directory'
-};
+} as const;
 
 export default class Settings extends EventTarget {
+
+    frontend: SettingDef;
+    readerEnabled: SettingDef<boolean>;
+    baseDirectory: SettingDef;
+    bookmarkDirectory: SettingDef;
+    useSubdirectory: SettingDef<boolean>;
+    ignoreErrorOnDownload: SettingDef<boolean>;
+    chapterTitleFormat: SettingDef;
+    chapterFormat: SettingDef;
+    recompressionFormat: SettingDef;
+    recompressionQuality: SettingDef<number>;
+    useSequentialMediaDownloads: SettingDef<boolean>;
+    proxyRules: SettingDef;
+    proxyAuth: SettingDef;
+    hCaptchaAccessibilityUUID: SettingDef;
+    downloadHistoryLogFormat: SettingDef;
+    postChapterDownloadCommand: SettingDef;
+    discordPresence: SettingDef;
+    NovelColorProfiles: SettingDef;
 
     // TODO: use dependency injection instead of globals for Engine.Storage, Engine.Conenctors
     constructor() {
@@ -275,7 +296,7 @@ export default class Settings extends EventTarget {
     }
 
     /** Resolve async paths that cannot be fetched in the constructor. */
-    async initialize() {
+    async initialize(): Promise<void> {
         try {
             let docs = await window.hakunekoAPI.app.getPath('documents');
             if (docs) {
@@ -290,23 +311,23 @@ export default class Settings extends EventTarget {
         }
     }
 
-    NovelColorProfile() {
+    NovelColorProfile(): Record<string, string> {
         return this.NovelColorProfiles.options.find(ele => ele.value.toLowerCase() == this.NovelColorProfiles.value.toLowerCase()).val;
     }
 
-    *[Symbol.iterator]() {
+    *[Symbol.iterator](): Generator<SettingDef> {
         for (let key in this) {
-            let property = this[key];
-            if (property instanceof Object && property.input) {
-                yield property;
+            let property = (this as unknown as Record<string, unknown>)[key];
+            if (property instanceof Object && (property as SettingDef).input) {
+                yield property as SettingDef;
             }
         }
     }
 
-    *_getCategorizedSettings() {
+    *_getCategorizedSettings(): Generator<{ category: string; settings: SettingDef[] }> {
         yield {
             category: 'General',
-            settings: [...this]
+            settings: [...(this as Iterable<SettingDef>)]
         };
         for (let connector of Engine.Connectors) {
             if (connector.config instanceof Object) {
@@ -318,35 +339,37 @@ export default class Settings extends EventTarget {
         }
     }
 
-    getCategorizedSettings() {
+    getCategorizedSettings(): Array<{ category: string; settings: SettingDef[] }> {
         return [...this._getCategorizedSettings()];
     }
 
-    async load() {
+    async load(): Promise<void> {
         try {
-            let data = await Engine.Storage.loadConfig('settings');
+            let data = await Engine.Storage.loadConfig('settings') as Record<string, unknown>;
             // apply general settings
             for (let key in this) {
+                let setting = (this as unknown as Record<string, SettingDef>)[key];
                 if (data
                     && data[key] !== undefined
-                    && this[key]
-                    && this[key].input
-                    && this[key].input !== types.disabled) {
-                    this[key].value = this._getDecryptedValue(this[key].input, data[key]);
-                    this[key].value = this._getValidValue('General', this[key]);
+                    && setting
+                    && setting.input
+                    && setting.input !== types.disabled) {
+                    setting.value = this._getDecryptedValue(setting.input, data[key] as string);
+                    setting.value = this._getValidValue('General', setting) as string;
                 }
             }
             // apply settings to each connector
             for (let connector of Engine.Connectors) {
+                const connectors = data && (data.connectors as Record<string, Record<string, unknown>>);
                 for (let key in connector.config) {
                     if (data
-                        && data.connectors
-                        && data.connectors[connector.id]
-                        && data.connectors[connector.id][key] !== undefined
+                        && connectors
+                        && connectors[connector.id as string]
+                        && connectors[connector.id as string][key] !== undefined
                         && connector.config[key]
                         && connector.config[key].input) {
-                        connector.config[key].value = this._getDecryptedValue(connector.config[key].input, data.connectors[connector.id][key]);
-                        connector.config[key].value = this._getValidValue(connector.label, connector.config[key], true);
+                        connector.config[key].value = this._getDecryptedValue(connector.config[key].input, connectors[connector.id as string][key] as string);
+                        connector.config[key].value = this._getValidValue(connector.label, connector.config[key], true) as string;
                     }
                 }
             }
@@ -356,21 +379,22 @@ export default class Settings extends EventTarget {
         }
     }
 
-    async save() {
+    async save(): Promise<void> {
         try {
-            let data = {};
+            let data: Record<string, unknown> = {};
             // gather general settings
             for (let key in this) {
-                if (this[key] && this[key].input && this[key].input !== types.disabled) {
-                    data[key] = this._getEncryptedValue(this[key].input, this[key].value);
+                let setting = (this as unknown as Record<string, SettingDef>)[key];
+                if (setting && setting.input && setting.input !== types.disabled) {
+                    data[key] = this._getEncryptedValue(setting.input, setting.value as string);
                 }
             }
             // gather settings from each connector
             data['connectors'] = {};
             for (let connector of Engine.Connectors) {
-                data.connectors[connector.id] = {};
+                (data.connectors as Record<string, Record<string, unknown>>)[connector.id as string] = {};
                 for (let key in connector.config) {
-                    data.connectors[connector.id][key] = this._getEncryptedValue(connector.config[key].input, connector.config[key].value);
+                    (data.connectors as Record<string, Record<string, unknown>>)[connector.id as string][key] = this._getEncryptedValue(connector.config[key].input, connector.config[key].value as string);
                 }
             }
             await Engine.Storage.saveConfig('settings', data, 2);
@@ -380,46 +404,33 @@ export default class Settings extends EventTarget {
         }
     }
 
-    /**
-     *
-     * @param inputType
-     * @param decryptedValue
-     */
-    _getEncryptedValue(inputType, decryptedValue) {
+    _getEncryptedValue(inputType: string, decryptedValue: string): string {
         if (inputType !== types.password || !decryptedValue || decryptedValue.length < 1) {
             return decryptedValue;
         }
         return CryptoJS.AES.encrypt(decryptedValue, 'HakuNeko!').toString();
     }
 
-    /**
-     *
-     * @param inputType
-     * @param encryptedValue
-     */
-    _getDecryptedValue(inputType, encryptedValue) {
+    _getDecryptedValue(inputType: string, encryptedValue: string): string {
         if (inputType !== types.password || !encryptedValue || encryptedValue.length < 1) {
             return encryptedValue;
         }
         return CryptoJS.AES.decrypt(encryptedValue, 'HakuNeko!').toString(CryptoJS.enc.Utf8);
     }
 
-    /**
-     *
-     */
-    _getValidValue(scope, setting, silent) {
+    _getValidValue(scope: string, setting: SettingDef, silent?: boolean): unknown {
         let value = setting.value;
         switch (setting.input) {
             case types.numeric:
-                if (setting.min !== undefined && value < setting.min) {
+                if (setting.min !== undefined && (value as unknown as number) < setting.min) {
                     return setting.min;
                 }
-                if (setting.max !== undefined && value > setting.max) {
+                if (setting.max !== undefined && (value as unknown as number) > setting.max) {
                     return setting.max;
                 }
                 return value;
             case types.directory:
-                Engine.Storage.directoryExist(value)
+                Engine.Storage.directoryExist(value as string)
                     .catch(error => {
                         let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
                         if (silent) {

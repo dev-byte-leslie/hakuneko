@@ -1,11 +1,25 @@
+import type Settings from './Settings';
+import type Chapter from './Chapter';
+
 const events = {
     changed: 'changed'
+} as const;
+
+/** A single chaptermark record stored and loaded via Engine.Storage */
+type Chaptermark = {
+    connectorID: string | symbol;
+    mangaID: string;
+    chapterID: string;
+    chapterTitle: string;
 };
 
 export default class ChaptermarkManager extends EventTarget {
 
+    chaptermarks: Chaptermark[];
+    _settings: Settings;
+
     // TODO: use dependency injection instead of globals for Engine.Storage
-    constructor(settings) {
+    constructor(settings: Settings) {
         super();
         this.chaptermarks = [];
         this._settings = settings;
@@ -13,28 +27,22 @@ export default class ChaptermarkManager extends EventTarget {
         this._settings.addEventListener('saved', this._onSettingsChanged.bind(this));
     }
 
-    _onSettingsChanged() {
+    _onSettingsChanged(): void {
         // TODO: only save chaptermarks if the bookmark directory has changed
         this._syncChaptermarks(undefined);
     }
 
-    /**
-     *
-     */
-    mergeChaptermarks( chaptermarks ) {
+    mergeChaptermarks(chaptermarks: unknown[]): void {
         if( !chaptermarks ) {
             return;
         }
 
-        let marks = chaptermarks.filter( c => this._findIndex( c ) < 0 );
+        let marks = (chaptermarks as Chaptermark[]).filter( c => this._findIndex( c ) < 0 );
         this.chaptermarks = this.chaptermarks.concat( marks );
         this._syncChaptermarks( undefined );
     }
 
-    /**
-     *
-     */
-    _findIndex( chaptermark ) {
+    _findIndex(chaptermark: { connectorID: string | symbol; mangaID: string }): number {
         return this.chaptermarks.findIndex( c => c.connectorID === chaptermark.connectorID && c.mangaID === chaptermark.mangaID );
     }
 
@@ -42,7 +50,7 @@ export default class ChaptermarkManager extends EventTarget {
      * Try to save the current chaptermarks.
      * Will reset chaptermarks when saving fails.
      */
-    _syncChaptermarks( callback ) {
+    _syncChaptermarks(callback?: ((error: Error | null) => void) | null): void {
         Engine.Storage.saveBookmarks( 'chaptermarks', this.chaptermarks, 2 )
             .then( () => {
                 this.dispatchEvent( new CustomEvent( events.changed, { detail: this.chaptermarks } ) );
@@ -55,12 +63,12 @@ export default class ChaptermarkManager extends EventTarget {
             } );
     }
 
-    _getChapterIdentifier( chapter ) {
+    _getChapterIdentifier(chapter: Chapter): string {
         // some chapters are using objects as ID, these will provide a hash as identifier
-        return chapter.id.hash || chapter.id;
+        return (chapter.id as unknown as { hash?: string }).hash || chapter.id;
     }
 
-    isChapterMarked( chapter, mark ) {
+    isChapterMarked(chapter: Chapter, mark: Chaptermark | undefined): boolean {
         return mark
             && chapter
             && (mark.chapterID === this._getChapterIdentifier(chapter) || mark.chapterID === chapter.file.full || mark.chapterTitle === chapter.title)
@@ -68,25 +76,22 @@ export default class ChaptermarkManager extends EventTarget {
             && mark.connectorID === chapter.manga.connector.id;
     }
 
-    /**
-     *
-     */
-    loadChaptermarks( callback ) {
+    loadChaptermarks(callback?: ((error: Error | null) => void) | null): void {
         Engine.Storage.loadBookmarks( 'chaptermarks' )
             .then( data => {
                 try {
                     if( !data ) {
                         throw new Error( 'Invalid chaptermark list!' );
                     }
-                    this.chaptermarks = data;
+                    this.chaptermarks = data as Chaptermark[];
                     this.dispatchEvent( new CustomEvent( events.changed, { detail: this.chaptermarks } ) );
                     if( typeof callback === typeof Function ) {
                         callback( null );
                     }
                 } catch( e ) {
-                    console.error( 'Failed to load chaptermarks:', e.message );
+                    console.error( 'Failed to load chaptermarks:', (e as Error).message );
                     if( typeof callback === typeof Function ) {
-                        callback( e );
+                        callback( e as Error );
                     }
                 }
             } )
@@ -100,8 +105,8 @@ export default class ChaptermarkManager extends EventTarget {
     /**
      * Get the chapter mark for the given manga (or undefined if no chapter is marked for the manga)
      */
-    getChaptermark( manga ) {
-        let chaptermark = undefined;
+    getChaptermark(manga: { id: string; connector: { id: string | symbol } } | null | undefined): Chaptermark | undefined {
+        let chaptermark: Chaptermark | undefined = undefined;
         if( manga ) {
             chaptermark = this.chaptermarks.find( mark => {
                 return mark.mangaID === manga.id && mark.connectorID === manga.connector.id;
@@ -117,11 +122,11 @@ export default class ChaptermarkManager extends EventTarget {
     /**
      * Mark the given chapter (replace any existing marked chapter for this connector/manga)
      */
-    addChaptermark( chapter ) {
+    addChaptermark(chapter: Chapter): void {
         if( !chapter || !chapter.manga || !chapter.manga.connector ) {
             return;
         }
-        let chaptermark = {
+        let chaptermark: Chaptermark = {
             connectorID: chapter.manga.connector.id,
             mangaID: chapter.manga.id,
             chapterID: this._getChapterIdentifier( chapter ),
@@ -137,10 +142,7 @@ export default class ChaptermarkManager extends EventTarget {
         this._syncChaptermarks();
     }
 
-    /**
-     *
-     */
-    deleteChaptermark( chaptermark ) {
+    deleteChaptermark(chaptermark: Chaptermark): void {
         let index = this._findIndex( chaptermark );
         if( index > -1 ) {
             this.chaptermarks.splice( index, 1 );

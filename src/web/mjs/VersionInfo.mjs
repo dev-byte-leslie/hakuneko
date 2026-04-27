@@ -4,7 +4,7 @@ export default {
         link: 'https://github.com/manga-download/hakuneko/commits/HAKU-0011',
     },
     revision: {
-        label: 'aa75e1',
-        link: 'https://github.com/manga-download/hakuneko/commits/aa75e18bb32f96803a34173390cff1f0949b2ffd',
+        label: '21e92e',
+        link: 'https://github.com/manga-download/hakuneko/commits/21e92e1fbea44a1328746b191e17831cd30ace97',
     }
 };

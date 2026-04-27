@@ -1,6 +1,26 @@
+import type Settings from './Settings';
+
+/** Shape of the Discord rich presence activity object */
+type DiscordStatus = {
+    largeImageKey: string;
+    largeImageText: string;
+    details?: string;
+    state?: string;
+    startTimestamp?: number;
+};
+
 export default class DiscordPresence {
 
-    constructor(settings) {
+    updater: ReturnType<typeof setInterval> | null;
+    connected: boolean;
+    _settings: Settings;
+    enabled: boolean;
+    enabledHentai: boolean;
+    hentai: boolean;
+    status: DiscordStatus;
+    statusNew: boolean;
+
+    constructor(settings: Settings) {
         this.updater = null;
         this.connected = false;
 
@@ -25,9 +45,9 @@ export default class DiscordPresence {
         document.addEventListener( EventListener.onSelectChapter, this._onSelectChapter.bind(this) );
     }
 
-    _onSettingsChanged() {
-        this.enabled = this._settings.discordPresence.value !== 'none';
-        this.enabledHentai = this._settings.discordPresence.value === 'hentai';
+    _onSettingsChanged(): void {
+        this.enabled = this._settings.discordPresence.value as string !== 'none';
+        this.enabledHentai = this._settings.discordPresence.value as string === 'hentai';
 
         if (this.enabled) {
             this.statusNew = true;
@@ -37,7 +57,7 @@ export default class DiscordPresence {
         }
     }
 
-    _onSelectConnector(event) {
+    _onSelectConnector(event: CustomEvent): void {
         this.isThisHentai(event.detail.tags);
         this.status['details'] = 'Browsing ' + event.detail.label;
         if (this.status.state) delete this.status.state;
@@ -46,7 +66,7 @@ export default class DiscordPresence {
         if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
-    _onSelectManga(event) {
+    _onSelectManga(event: CustomEvent): void {
         this.isThisHentai(event.detail.connector.tags);
         this.status['details'] = 'Browsing ' + event.detail.connector.label;
         this.status['state'] = 'Looking at ' + event.detail.title;
@@ -55,7 +75,7 @@ export default class DiscordPresence {
         if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
-    _onSelectChapter(event) {
+    _onSelectChapter(event: CustomEvent): void {
         this.isThisHentai(event.detail.manga.connector.tags);
         this.status['details'] = 'Viewing ' + event.detail.manga.title;
         this.status['state'] = event.detail.title.padEnd(2); // State min. length is 2 char
@@ -64,12 +84,12 @@ export default class DiscordPresence {
         if (this.enabled && !this.connected) this.startDiscordPresence();
     }
 
-    isThisHentai(tags) {
+    isThisHentai(tags: string[]): void {
         tags = tags.map(t => t.toLowerCase());
         this.hentai = tags.includes('hentai') || tags.includes('porn');
     }
 
-    async updateStatus() {
+    async updateStatus(): Promise<void> {
         if (this.connected) {
             if (this.enabled && this.statusNew) {
                 if (!this.hentai || this.hentai && this.enabledHentai) {
@@ -87,7 +107,7 @@ export default class DiscordPresence {
         }
     }
 
-    stopDiscordPresence() {
+    stopDiscordPresence(): void {
         this.statusNew = false;
         this.connected = false;
         clearInterval(this.updater);
@@ -95,7 +115,7 @@ export default class DiscordPresence {
         window.hakunekoAPI.discord.stop().catch(() => {});
     }
 
-    async startDiscordPresence() {
+    async startDiscordPresence(): Promise<void> {
         if (this.connected) {
             return; // already running ...
         }
@@ -115,12 +135,12 @@ export default class DiscordPresence {
             }, 15200);
         } catch (error) {
             if (typeof error !== 'undefined') {
-                if (/Could not connect/i.test(error.message)) {
+                if (/Could not connect/i.test((error as Error).message)) {
                     console.warn('WARNING: DiscordPresence - Could not connect (Is Discord running?)');
                     return;
                 }
 
-                if (/RPC_CONNECTION_TIMEOUT/i.test(error.message)) {
+                if (/RPC_CONNECTION_TIMEOUT/i.test((error as Error).message)) {
                     console.warn('WARNING: DiscordPresence - RPC connection timed out.');
                     this.connected = false;
 

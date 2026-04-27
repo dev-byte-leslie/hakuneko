@@ -1,14 +1,22 @@
+import type { IConnector } from './IConnector';
+
+type IPCBridge = {
+    listen(channel: string, handler: (payload: unknown) => Promise<unknown>): void;
+};
+
 export default class Connectors {
 
-    constructor(ipc) {
+    _list: IConnector[];
+
+    constructor(ipc: IPCBridge) {
         ipc.listen('hakuneko:ipc:connector-protocol', this._onConnectorProtocolHandler.bind(this));
         this._list = [];
     }
 
-    async _loadPlugins(uri) {
+    async _loadPlugins(uri: string): Promise<string[]> {
         try {
             let response = await fetch(uri);
-            let data = await response.json();
+            let data = await response.json() as string[];
             return data.filter(plugin => !plugin.startsWith('.') && plugin.endsWith('.mjs')).map(plugin => uri + plugin);
         } catch(error) {
             //console.warn(error);
@@ -16,7 +24,7 @@ export default class Connectors {
         }
     }
 
-    async initialize() {
+    async initialize(): Promise<void> {
         const systemPlugins = [
             '../connectors/system/BookmarkConnector.mjs',
             '../connectors/system/FolderConnector.mjs',
@@ -35,7 +43,7 @@ export default class Connectors {
     /**
      * Collect domains from connectors that declare certBypass and send to main process.
      */
-    _registerCertBypassDomains() {
+    _registerCertBypassDomains(): void {
         const bypassDomains = this._list
             .filter(c => c.certBypass && c.url)
             .map(c => {
@@ -45,25 +53,25 @@ export default class Connectors {
                     return null;
                 }
             })
-            .filter(Boolean);
+            .filter(Boolean) as string[];
 
         if (bypassDomains.length > 0 && window.hakunekoAPI && window.hakunekoAPI.cert) {
             window.hakunekoAPI.cert.registerBypassDomains([...new Set(bypassDomains)]);
         }
     }
 
-    get list() {
+    get list(): IConnector[] {
         return this._list;
     }
 
-    async register(files) {
+    async register(files: string[]): Promise<void> {
         try {
             for(let file of files) {
                 try {
                     let module = await import(file);
-                    let connector = new module.default();
+                    let connector = new module.default() as IConnector;
                     if(this._list.find(c => c.id === connector.id)) {
-                        console.warn(`The connector "${connector.label}" with ID "${connector.id}" is already registered`);
+                        console.warn(`The connector "${connector.label}" with ID "${connector.id as string}" is already registered`);
                     } else {
                         this._list.push(connector);
                     }
@@ -79,7 +87,7 @@ export default class Connectors {
         }
     }
 
-    async _onConnectorProtocolHandler(request) {
+    async _onConnectorProtocolHandler(request: { url: string }): Promise<unknown> {
         try {
             let uri = new URL(request.url);
             return this._list.find(connector => connector.id === uri.hostname).handleConnectorURI(uri);

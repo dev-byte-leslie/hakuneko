@@ -1,9 +1,13 @@
 import HeaderGenerator from './HeaderGenerator';
+import type Settings from './Settings';
 
 export default class Request {
 
+    userAgent: string;
+    _settings: Settings;
+
     // TODO: use dependency injection instead of globals for Engine.Settings, Engine.Blacklist, Enums
-    constructor(ipc, settings) {
+    constructor(ipc: unknown, settings: Settings) {
         this.userAgent = HeaderGenerator.randomUA();
 
         this._settings = settings;
@@ -11,7 +15,7 @@ export default class Request {
         this._settings.addEventListener('saved', this._onSettingsChanged.bind(this));
     }
 
-    async _initializeHCaptchaUUID(settings) {
+    async _initializeHCaptchaUUID(settings: Settings): Promise<void> {
         let hcCookies = await window.hakunekoAPI.session.cookies.get({ name: 'hc_accessibility' });
         let isCookieAvailable = hcCookies.some(cookie => cookie.expirationDate > Date.now() / 1000 + 1800);
         if (settings.hCaptchaAccessibilityUUID.value && !isCookieAvailable) {
@@ -47,25 +51,22 @@ export default class Request {
         }
     }
 
-    _initializeProxy(settings) {
+    _initializeProxy(settings: Settings): void {
         // See: https://electronjs.org/docs/api/session#sessetproxyconfig-callback
-        let proxy = {};
+        let proxy: Record<string, string> = {};
         if (settings.proxyRules.value) {
-            proxy['proxyRules'] = settings.proxyRules.value;
+            proxy['proxyRules'] = settings.proxyRules.value as string;
         }
         window.hakunekoAPI.session.setProxy(proxy);
     }
 
-    _onSettingsChanged(event) {
+    _onSettingsChanged(event: CustomEvent): void {
         this._initializeProxy(event.detail);
         this._initializeHCaptchaUUID(event.detail);
     }
 
-    /**
-     *
-     */
-    _loginHandler(evt, webContent, request, authInfo, callback) {
-        let proxyAuth = this._settings.proxyAuth.value;
+    _loginHandler(evt: unknown, webContent: unknown, request: unknown, authInfo: { isProxy: boolean }, callback: (user: string, pass: string) => void): void {
+        let proxyAuth = this._settings.proxyAuth.value as string;
         if (authInfo.isProxy && proxyAuth && proxyAuth.includes(':')) {
             let auth = proxyAuth.split(':');
             let username = auth[0];
@@ -83,19 +84,19 @@ export default class Request {
      * The browser window of electron does not support request objects,
      * so it is required to convert the request to supported options.
      */
-    _extractRequestOptions(request) {
+    _extractRequestOptions(request: globalThis.Request): Record<string, string | undefined> {
         let referer = request.headers.get('x-referer');
         let cookie = request.headers.get('x-cookie');
-        let headers = [];
+        let headers: string[] = [];
         if (cookie) {
             headers.push('x-cookie: ' + cookie);
         }
-        headers = headers.join('\n');
+        let headersStr = headers.join('\n');
         return {
             // set user agent to prevent `window.navigator.userAgent` being set to elecetron ...
             userAgent: request.headers.get('x-user-agent') || this.userAgent,
             httpReferrer: referer ? referer : undefined,
-            extraHeaders: headers ? headers : undefined
+            extraHeaders: headersStr ? headersStr : undefined
 
             //postData: undefined,
         };
@@ -105,7 +106,7 @@ export default class Request {
      * Fetch content using a hidden BrowserWindow with a Japscan-specific flow.
      * Delegates BrowserWindow management to the main process via IPC.
      */
-    async fetchJapscan(request, preloadScript, runtimeScript, action, preferences, timeout) {
+    async fetchJapscan(request: globalThis.Request, preloadScript: string, runtimeScript: string, action: unknown, preferences: Record<string, unknown> | null, timeout: number): Promise<unknown> {
         let requestOptions = this._extractRequestOptions(request);
         let serializablePrefs = preferences ? {
             nodeIntegration: preferences.nodeIntegration,
@@ -118,7 +119,7 @@ export default class Request {
         );
     }
 
-    async fetchBrowser(request, preloadScript, runtimeScript, preferences, timeout) {
+    async fetchBrowser(request: globalThis.Request, preloadScript: string, runtimeScript: string, preferences: Record<string, unknown> | null, timeout: number): Promise<unknown> {
         let requestOptions = this._extractRequestOptions(request);
         let blacklistPatterns = Engine.Blacklist.patterns;
         let serializablePrefs = preferences ? {
@@ -136,7 +137,7 @@ export default class Request {
      * it will be closed after injecting the script (or after 60 seconds in case an error occurred).
      * Delegates BrowserWindow management to the main process via IPC.
      */
-    async fetchUI(request, injectionScript, timeout, images) {
+    async fetchUI(request: globalThis.Request, injectionScript: string, timeout: number, images?: boolean): Promise<unknown> {
         let requestOptions = this._extractRequestOptions(request);
         let blacklistPatterns = Engine.Blacklist.patterns;
         return window.hakunekoAPI.browser.fetchUI(
