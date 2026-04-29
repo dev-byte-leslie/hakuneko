@@ -199,7 +199,7 @@ export default class Storage {
         let playlist = files.find(file => file.endsWith(extensions.m3u8));
         let subtitles = files.filter(file => file.endsWith('.ass') || file.endsWith('.ssa'));
         let media = {
-            mirrors: [await this._makeValidFileURL(directory, playlist)],
+            mirrors: [await this._makeValidFileURL(directory, playlist ?? '')],
             subtitles: await Promise.all(subtitles.sort().map(async subtitle => {
                 let parts = subtitle.split('.');
                 return {
@@ -246,7 +246,7 @@ export default class Storage {
      */
     async _extractZipEntry(archive: unknown, file: string): Promise<string> {
         const data = await (archive as any).files[file].async('uint8array');
-        const name = await this.pathAPI.join(this.temp, await this.pathAPI.basename(file));
+        const name = await this.pathAPI.join(this.temp!, await this.pathAPI.basename(file));
         // attach timestamp to force reload of already existing, but overwritten temp files
         let page = encodeURI('hakuneko-local://' + name.replace(/\\/g, '/') + '?ts=' + Date.now());
         await this.fs.writeFile(name, data);
@@ -458,7 +458,7 @@ export default class Storage {
                 bytesMatchClaim = true;
             }
             if (!bytesMatchClaim) {
-                pdfImgType = null;
+                pdfImgType = undefined;
             }
         }
 
@@ -468,9 +468,9 @@ export default class Storage {
             canvas.width = bitmap.width;
             canvas.height = bitmap.height;
             let ctx = canvas.getContext('2d');
-            ctx.drawImage(bitmap, 0, 0);
+            ctx!.drawImage(bitmap, 0, 0);
             blob = await new Promise(resolve => {
-                canvas.toBlob(data => resolve(data), 'image/jpeg', 0.90);
+                canvas.toBlob(data => resolve(data!), 'image/jpeg', 0.90);
             });
         } else {
             blob = page.data;
@@ -558,7 +558,7 @@ export default class Storage {
 
     async saveTempFile(name: string, data: string | Uint8Array): Promise<void> {
         try {
-            let file = await this.pathAPI.join(this.temp, this.sanatizePath(name));
+            let file = await this.pathAPI.join(this.temp!, this.sanatizePath(name));
             return this._writeFile(file, data);
         } catch (error) {
             return Promise.reject(error);

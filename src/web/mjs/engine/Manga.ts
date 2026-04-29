@@ -26,7 +26,7 @@ interface MangaConnector {
     requestOptions: RequestInit;
     config?: Record<string, { value: unknown }>;
     initialize(): Promise<void>;
-    _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language: string }>) => void): void | Promise<void>;
+    _getChapterList(manga: Manga, callback: (error: Error | null, chapters: Array<{ id: string; title: string; language?: string }> | undefined) => void): void | Promise<void>;
     _getPageList(manga: Manga, chapter: Chapter, callback: (error: Error | null, pages: string[] | object | undefined) => void): void | Promise<void>;
     getFormatRegex(): FormatRegex;
 }

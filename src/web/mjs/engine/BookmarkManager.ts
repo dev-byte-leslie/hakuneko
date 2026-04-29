@@ -133,18 +133,18 @@ export default class BookmarkManager extends EventTarget {
                     this.bookmarks = data as Bookmark[];
                     this.bookmarks.sort( this.compareBookmarks );
                     this.dispatchEvent( new CustomEvent( events.changed, { detail: this.bookmarks } ) );
-                    if( typeof callback === typeof Function ) {
+                    if( typeof callback === 'function' ) {
                         callback( null );
                     }
                 } catch( e ) {
                     console.error( 'Failed to load bookmarks:', (e as Error).message );
-                    if( typeof callback === typeof Function ) {
+                    if( typeof callback === 'function' ) {
                         callback( e as Error );
                     }
                 }
             } )
             .catch( error => {
-                if( typeof callback === typeof Function ) {
+                if( typeof callback === 'function' ) {
                     callback( error );
                 }
             } );
@@ -159,13 +159,13 @@ export default class BookmarkManager extends EventTarget {
         Engine.Storage.saveBookmarks( 'bookmarks', this.bookmarks, 2 )
             .then( () => {
                 this.dispatchEvent( new CustomEvent( events.changed, { detail: this.bookmarks } ) );
-                if( typeof callback === typeof Function ) {
+                if( typeof callback === 'function' ) {
                     callback( null );
                 }
             } )
             .catch( error => {
                 console.error( 'Failed to save bookmarks:', error.message );
-                if( typeof callback === typeof Function ) {
+                if( typeof callback === 'function' ) {
                     callback( error );
                 }
             } );

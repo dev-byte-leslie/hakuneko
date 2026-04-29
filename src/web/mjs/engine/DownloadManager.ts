@@ -51,7 +51,7 @@ export default class DownloadManager extends EventTarget {
             if( this.queue[connectorID].length > 0 && this.queue[connectorID].activeCount < 1 && !this.queue[connectorID][0].chapter.manga.connector.isLocked ) {
                 this.queue[connectorID].activeCount++;
                 let job = this.queue[connectorID].shift();
-                job.downloadPages( '', () => {
+                job!.downloadPages( '', () => {
                     this.queue[connectorID].activeCount--;
                 });
             }

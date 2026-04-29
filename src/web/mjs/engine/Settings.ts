@@ -312,7 +312,7 @@ export default class Settings extends EventTarget {
     }
 
     NovelColorProfile(): Record<string, string> {
-        return this.NovelColorProfiles.options.find(ele => ele.value.toLowerCase() == this.NovelColorProfiles.value.toLowerCase()).val;
+        return this.NovelColorProfiles.options!.find(ele => ele.value.toLowerCase() == this.NovelColorProfiles.value.toLowerCase())!.val!;
     }
 
     *[Symbol.iterator](): Generator<SettingDef> {
@@ -333,7 +333,7 @@ export default class Settings extends EventTarget {
             if (connector.config instanceof Object) {
                 yield {
                     category: connector.label,
-                    settings: Object.keys(connector.config).map(key => connector.config[key])
+                    settings: Object.keys(connector.config!).map(key => connector.config![key])
                 };
             }
         }

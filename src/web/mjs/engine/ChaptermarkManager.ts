@@ -54,7 +54,7 @@ export default class ChaptermarkManager extends EventTarget {
         Engine.Storage.saveBookmarks( 'chaptermarks', this.chaptermarks, 2 )
             .then( () => {
                 this.dispatchEvent( new CustomEvent( events.changed, { detail: this.chaptermarks } ) );
-                if( typeof callback === typeof Function ) {
+                if( typeof callback === 'function' ) {
                     callback( null );
                 }
             } )
@@ -69,11 +69,11 @@ export default class ChaptermarkManager extends EventTarget {
     }
 
     isChapterMarked(chapter: Chapter, mark: Chaptermark | undefined): boolean {
-        return mark
+        return !!(mark
             && chapter
             && (mark.chapterID === this._getChapterIdentifier(chapter) || mark.chapterID === chapter.file.full || mark.chapterTitle === chapter.title)
             && mark.mangaID === chapter.manga.id
-            && mark.connectorID === chapter.manga.connector.id;
+            && mark.connectorID === chapter.manga.connector.id);
     }
 
     loadChaptermarks(callback?: ((error: Error | null) => void) | null): void {
@@ -85,18 +85,18 @@ export default class ChaptermarkManager extends EventTarget {
                     }
                     this.chaptermarks = data as Chaptermark[];
                     this.dispatchEvent( new CustomEvent( events.changed, { detail: this.chaptermarks } ) );
-                    if( typeof callback === typeof Function ) {
+                    if( typeof callback === 'function' ) {
                         callback( null );
                     }
                 } catch( e ) {
                     console.error( 'Failed to load chaptermarks:', (e as Error).message );
-                    if( typeof callback === typeof Function ) {
+                    if( typeof callback === 'function' ) {
                         callback( e as Error );
                     }
                 }
             } )
             .catch( error => {
-                if( typeof callback === typeof Function ) {
+                if( typeof callback === 'function' ) {
                     callback( error );
                 }
             } );
