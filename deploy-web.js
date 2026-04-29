@@ -29,9 +29,10 @@ function validateEnvironment() {
     if(!process.env.GITHUB_TOKEN) {
         throw new Error('Missing environment variable "GITHUB_TOKEN" to provide access to the git repository!');
     }
-    if(!process.env.HAKUNEKO_PASSPHRASE) {
-        throw new Error('Missing environment variable "HAKUNEKO_PASSPHRASE" to decrypt private key for signature!');
-    }
+    // Passphrase signing disabled — key infrastructure not yet configured
+    //if(!process.env.HAKUNEKO_PASSPHRASE) {
+    //    throw new Error('Missing environment variable "HAKUNEKO_PASSPHRASE" to decrypt private key for signature!');
+    //}
 }
 
 async function gitStashPush(identifier) {
