@@ -217,7 +217,7 @@ export default class Storage {
         // TODO: load subtitles
         let media = {
             video: await this._makeValidFileURL(matroska, ''),
-            subtitles: []
+            subtitles: [] as unknown[]
         };
         return media;
     }
@@ -226,7 +226,7 @@ export default class Storage {
         // TODO: load subtitles
         let media = {
             video: await this._makeValidFileURL(mpeg4, ''),
-            subtitles: []
+            subtitles: [] as unknown[]
         };
         return media;
     }
@@ -401,7 +401,7 @@ export default class Storage {
         oebps.file('content.opf', EbookGenerator.createContentOPF(uid, title, params));
         oebps.file('toc.ncx', EbookGenerator.createTocNCX(uid, '', params));
         return zip.generateAsync({ compression: 'STORE', type: 'uint8array' })
-            .then(data => {
+            .then((data: Uint8Array) => {
                 return this._writeFile(ebook, data);
             });
     }
@@ -414,7 +414,7 @@ export default class Storage {
     async _saveChapterPagesPDF(pdf: string, pageData: PageData[]): Promise<void> {
         const doc = new PDFDocument({ autoFirstPage: false });
         const chunks: Uint8Array[] = [];
-        doc.on('data', chunk => chunks.push(chunk));
+        doc.on('data', (chunk: Uint8Array) => chunks.push(chunk));
         const done = new Promise<void>((resolve, reject) => {
             doc.on('end', resolve);
             doc.on('error', reject);
@@ -496,7 +496,7 @@ export default class Storage {
             zip.file(page.name, page.data);
         });
         return zip.generateAsync({ compression: 'STORE', type: 'uint8array' })
-            .then(data => {
+            .then((data: Uint8Array) => {
                 return this._writeFile(archive, data);
             });
     }
