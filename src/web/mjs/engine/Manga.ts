@@ -152,17 +152,17 @@ export default class Manga extends EventTarget {
     _getUpdatedChaptersFromWebsite(): Promise<Chapter[]> {
         return this.connector.initialize()
             .then( () => {
-                return new Promise<Array<{ id: string; title: string; language: string }>>( ( resolve, reject ) => {
-                    this.connector._getChapterList( this, ( error: Error | null, chapters: Array<{ id: string; title: string; language: string }> ) => {
+                return new Promise<Array<{ id: string; title: string; language?: string }>>( ( resolve, reject ) => {
+                    this.connector._getChapterList( this, ( error: Error | null, chapters: Array<{ id: string; title: string; language?: string }> | undefined ) => {
                         if( error ) {
                             reject( error );
                         } else {
-                            resolve( chapters );
+                            resolve( chapters ?? [] );
                         }
                     } );
                 } );
             } )
-            .then( (chapters: Array<{ id: string; title: string; language: string }>) => {
+            .then( (chapters: Array<{ id: string; title: string; language?: string }>) => {
                 const chapterFormat = Engine.Settings.chapterTitleFormat.value;
                 // de-serialize chapters into objects
                 this.chapterCache = chapters.map( chapter => {

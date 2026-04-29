@@ -11,7 +11,7 @@ export default class Connector implements IConnector {
     id: string | symbol;
     label: string;
     tags: string[];
-    url: string;
+    url!: string; // set by connector implementations, not the base class
     isLocked: boolean | symbol;
     initialized: boolean;
     /** Whether this connector's domain should bypass certificate validation */
@@ -19,7 +19,7 @@ export default class Connector implements IConnector {
     isUpdating: boolean;
     mangaCache: Manga[] | undefined;
     existingMangas: Record<string, boolean>;
-    existingManga: Record<string, boolean>;
+    existingManga!: Record<string, boolean>; // populated by getMangas() before use
     requestOptions: ConnectorRequestOptions;
     config?: ConnectorConfig;
 
@@ -86,7 +86,7 @@ export default class Connector implements IConnector {
             }
         } catch(error) {
             // only throw when not in offline mode
-            if(!error.stack.startsWith('ERR_INTERNET_DISCONNECTED')) {
+            if(!(error as Error).stack?.startsWith('ERR_INTERNET_DISCONNECTED')) {
                 throw error;
             }
         }
@@ -600,7 +600,7 @@ export default class Connector implements IConnector {
             callback(null, mangas);
         } catch(error) {
             console.error(error, this);
-            callback(error, undefined);
+            callback(error as Error, undefined);
         }
     }
 
@@ -619,7 +619,7 @@ export default class Connector implements IConnector {
             callback(null, chapters);
         } catch(error) {
             console.error(error, manga);
-            callback(error, undefined);
+            callback(error as Error, undefined);
         }
     }
 
@@ -639,7 +639,7 @@ export default class Connector implements IConnector {
             callback(null, pages);
         } catch(error) {
             console.error(error, chapter);
-            callback(error, undefined);
+            callback(error as Error, undefined);
         }
     }
 

@@ -40,9 +40,9 @@ export default class DiscordPresence {
         this.statusNew = true;
 
         // EventListener
-        document.addEventListener( EventListener.onSelectConnector, this._onSelectConnector.bind(this) );
-        document.addEventListener( EventListener.onSelectManga, this._onSelectManga.bind(this) );
-        document.addEventListener( EventListener.onSelectChapter, this._onSelectChapter.bind(this) );
+        document.addEventListener( EventListener.onSelectConnector, this._onSelectConnector.bind(this) as EventListener );
+        document.addEventListener( EventListener.onSelectManga, this._onSelectManga.bind(this) as EventListener );
+        document.addEventListener( EventListener.onSelectChapter, this._onSelectChapter.bind(this) as EventListener );
     }
 
     _onSettingsChanged(): void {

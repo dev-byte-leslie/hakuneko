@@ -127,7 +127,7 @@ export default class DownloadJob extends EventTarget {
             this.setStatus(statusDefinitions.completed);
             callback();
         } catch(error) {
-            this.errors.push(error);
+            this.errors.push(error as Error);
             console.error(error, pages);
             this.setProgress(100);
             this.setStatus(statusDefinitions.failed);
