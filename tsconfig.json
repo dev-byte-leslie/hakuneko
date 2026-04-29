@@ -2,6 +2,7 @@
     "compilerOptions": {
         "allowJs": true,
         "strict": false,
+        "noImplicitAny": true,
         "noEmit": true,
         "moduleResolution": "bundler",
         "module": "ESNext",

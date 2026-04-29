@@ -388,11 +388,11 @@ export default class Connector implements IConnector {
             case typeof reference === 'string':
                 refURI = new URL( reference, baseURI.href );
                 break;
-            case reference['src'] !== undefined:
-                refURI = new URL( reference.getAttribute( 'src' ), baseURI.href );
+            case (reference as unknown as Record<string, unknown>)['src'] !== undefined:
+                refURI = new URL( (reference as HTMLElement).getAttribute( 'src' ), baseURI.href );
                 break;
-            case reference['href'] !== undefined:
-                refURI = new URL( reference.getAttribute( 'href' ), baseURI.href );
+            case (reference as unknown as Record<string, unknown>)['href'] !== undefined:
+                refURI = new URL( (reference as HTMLElement).getAttribute( 'href' ), baseURI.href );
                 break;
             default:
                 throw new Error( 'Failed to extract relative link (parameter "reference" is invalid)!' );
