@@ -29,10 +29,6 @@ function validateEnvironment() {
     if(!process.env.GITHUB_TOKEN) {
         throw new Error('Missing environment variable "GITHUB_TOKEN" to provide access to the git repository!');
     }
-    // Passphrase signing disabled — key infrastructure not yet configured
-    //if(!process.env.HAKUNEKO_PASSPHRASE) {
-    //    throw new Error('Missing environment variable "HAKUNEKO_PASSPHRASE" to decrypt private key for signature!');
-    //}
 }
 
 async function gitStashPush(identifier) {
@@ -49,14 +45,19 @@ async function gitStashPop(identifier) {
 }
 
 async function sslPack(archive, meta) {
-    let key = path.resolve(config.key);
     let cwd = process.cwd();
     if(config.build) {
         process.chdir(config.build);
     }
     await execute(`zip -r ${archive} . > /dev/null`);
-    let signature = await execute(`openssl dgst -sha256 -hex -sign ${key} -passin ${config.passphrase} ${archive} | cut -d' ' -f2`);
-    await fs.writeFile(meta, `${archive}?signature=${signature}`);
+    if(process.env.HAKUNEKO_PASSPHRASE) {
+        let key = path.resolve(config.key);
+        let signature = await execute(`openssl dgst -sha256 -hex -sign ${key} -passin ${config.passphrase} ${archive} | cut -d' ' -f2`);
+        await fs.writeFile(meta, `${archive}?signature=${signature}`);
+    } else {
+        // No signing key configured — write unsigned meta (signature verification skipped)
+        await fs.writeFile(meta, archive);
+    }
     process.chdir(cwd);
 }
 
