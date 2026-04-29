@@ -110,7 +110,7 @@ export default class DiscordPresence {
     stopDiscordPresence(): void {
         this.statusNew = false;
         this.connected = false;
-        clearInterval(this.updater);
+        clearInterval(this.updater ?? undefined);
         this.updater = null;
         window.hakunekoAPI.discord.stop().catch(() => {});
     }

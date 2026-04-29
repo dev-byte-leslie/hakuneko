@@ -99,7 +99,8 @@ export default class Connector implements IConnector {
         let needle = pattern.toLowerCase();
         return Engine.Storage.loadMangaList( this.id )
             .then( mangas => {
-                return Promise.resolve( mangas.find( manga => manga.title.toLowerCase().includes( needle ) ) );
+                const found = mangas.find( manga => manga.title.toLowerCase().includes( needle ) );
+                return Promise.resolve( found ? new Manga( this, found.id, found.title ) : undefined );
             } )
             .catch( () => Promise.resolve( undefined ) );
     }
@@ -123,7 +124,7 @@ export default class Connector implements IConnector {
                     }
                     // remove duplicates by checking if manga with given ID is first occurance in list
                     mangas = mangas.filter( ( manga, index ) => {
-                        return index === mangas.findIndex( m => m.id === manga.id );
+                        return index === mangas!.findIndex( m => m.id === manga.id );
                     } );
                     // sort by title
                     mangas.sort( ( a, b ) => {
@@ -207,13 +208,13 @@ export default class Connector implements IConnector {
     /**
      *
      */
-    _getUpdatedMangasFromCache(): Promise<Manga[] | undefined> {
+    _getUpdatedMangasFromCache(): Promise<Manga[]> {
         if( this.mangaCache ) {
             this.mangaCache.forEach( manga => {
                 manga.updateStatus();
             } );
         }
-        return Promise.resolve( this.mangaCache );
+        return Promise.resolve( this.mangaCache! );
     }
 
     /**
@@ -272,7 +273,7 @@ export default class Connector implements IConnector {
     adLinkDecrypt(element: HTMLAnchorElement): void {
         let uri = new URL(element.href);
         if(uri.hostname === 'nofil.net' && element.pathname.includes('safeme')) {
-            element.href = uri.searchParams.get('url');
+            element.href = uri.searchParams.get('url') ?? element.href;
         }
     }
 
@@ -389,10 +390,10 @@ export default class Connector implements IConnector {
                 refURI = new URL( reference, baseURI.href );
                 break;
             case (reference as unknown as Record<string, unknown>)['src'] !== undefined:
-                refURI = new URL( (reference as HTMLElement).getAttribute( 'src' ), baseURI.href );
+                refURI = new URL( (reference as HTMLElement).getAttribute( 'src' ) ?? '', baseURI.href );
                 break;
             case (reference as unknown as Record<string, unknown>)['href'] !== undefined:
-                refURI = new URL( (reference as HTMLElement).getAttribute( 'href' ), baseURI.href );
+                refURI = new URL( (reference as HTMLElement).getAttribute( 'href' ) ?? '', baseURI.href );
                 break;
             default:
                 throw new Error( 'Failed to extract relative link (parameter "reference" is invalid)!' );
@@ -458,7 +459,7 @@ export default class Connector implements IConnector {
             return this.fetchDOM(request, selector, retries - 1);
         }
         const content = response.headers.get('content-type');
-        if(response.status === 200 || content.includes('text/html')) {
+        if(response.status === 200 || content?.includes('text/html')) {
             const data = await response.arrayBuffer();
             const dom = this.createDOM(new TextDecoder(encoding || 'utf8').decode(data));
             return Promise.resolve(!selector ? dom : [...dom.querySelectorAll(selector)]);
@@ -714,11 +715,11 @@ export default class Connector implements IConnector {
                 resolve({
                     mimeType: blob.type,
                     // NOTE: Uint8Array() seems slightly better than Buffer.from(), but both are blazing fast
-                    data: Buffer.from(event.target.result) // new Uint8Array( event.target.result )
+                    data: Buffer.from(event.target!.result as ArrayBuffer) // new Uint8Array( event.target.result )
                 });
             };
             reader.onerror = event => {
-                reject(event.target.error);
+                reject(event.target!.error);
             };
             reader.readAsArrayBuffer(blob);
         });

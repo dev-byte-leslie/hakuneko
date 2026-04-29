@@ -93,7 +93,7 @@ export default class BookmarkImporter {
          * The key is based on HakuNeko connector IDs
          */
         this._mangaMap = {
-            'mangadex': id => id.match( /^\/[a-z]+\/(\d+)($|\/.*$)/ )[1],
+            'mangadex': id => id.match( /^\/[a-z]+\/(\d+)($|\/.*$)/ )![1],
             'mangarock': id => id.split( '/' ).pop(),
             //'mangapark': id => ( id.indexOf( '/series' ) > -1 ? id : undefined ),
             'mangatube': id => id.split( '/' ).pop()
@@ -133,7 +133,7 @@ export default class BookmarkImporter {
         return {
             key: {
                 connector: connectorID,
-                manga: mangaID
+                manga: mangaID ?? ''
             },
             title: {
                 connector: row[2] as string,
