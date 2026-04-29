@@ -120,12 +120,12 @@ export default class Chapter extends EventTarget {
             this.manga.connector.initialize()
                 .then( () => {
                 // get page list directly from the connector interface and cache them
-                    this.manga.connector._getPageList( this.manga, this, ( error: Error | null, pages: string[] | HLSEpisode | VideoEpisode ) => {
+                    this.manga.connector._getPageList( this.manga, this, ( error: Error | null, pages: object | string[] | undefined ) => {
                         this.pageCache = [];
                         if( !error ) {
-                            if((pages as string[]).length || 'video' in pages && (pages as VideoEpisode).video || 'mirrors' in pages && (pages as HLSEpisode).mirrors.length) {
+                            if(pages && ((pages as string[]).length || 'video' in pages && (pages as VideoEpisode).video || 'mirrors' in pages && (pages as HLSEpisode).mirrors.length)) {
                                 // HACK: bypass 'i0.wp.com' image CDN to ensure original images are loaded directly from host
-                                this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages;
+                                this.pageCache = Array.isArray(pages) ? pages.map(page => page.replace(/\/i\d+\.wp\.com/, '')) : pages as HLSEpisode | VideoEpisode;
                             } else {
                                 error = new Error(`There was no content found for '${this.title}', make sure it is accessible (login, purchase, ...)!`);
                             }

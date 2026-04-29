@@ -11,8 +11,8 @@ export default class Request {
         this.userAgent = HeaderGenerator.randomUA();
 
         this._settings = settings;
-        this._settings.addEventListener('loaded', this._onSettingsChanged.bind(this));
-        this._settings.addEventListener('saved', this._onSettingsChanged.bind(this));
+        this._settings.addEventListener('loaded', this._onSettingsChanged.bind(this) as EventListener);
+        this._settings.addEventListener('saved', this._onSettingsChanged.bind(this) as EventListener);
     }
 
     async _initializeHCaptchaUUID(settings: Settings): Promise<void> {

@@ -87,9 +87,9 @@ export default class Connectors {
         }
     }
 
-    async _onConnectorProtocolHandler(request: { url: string }): Promise<unknown> {
+    async _onConnectorProtocolHandler(payload: unknown): Promise<unknown> {
         try {
-            let uri = new URL(request.url);
+            let uri = new URL((payload as { url: string }).url);
             return this._list.find(connector => connector.id === uri.hostname)?.handleConnectorURI(uri);
         } catch(error) {
             console.error(error);
