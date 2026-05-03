@@ -37,6 +37,7 @@ const types = {
 export default class Settings extends EventTarget {
 
     frontend: SettingDef;
+    theme: SettingDef;
     readerEnabled: SettingDef<boolean>;
     baseDirectory: SettingDef;
     bookmarkDirectory: SettingDef;
@@ -67,10 +68,20 @@ export default class Settings extends EventTarget {
             ].join('\n'),
             input: types.select,
             options: [
-                { value: 'frontend@classic-light', name: 'Classic (Light)' },
-                { value: 'frontend@classic-dark', name: 'Ken\'s Daedal Dark' }
+                { value: 'frontend@classic', name: 'Classic' }
             ],
-            value: 'frontend@classic-light'
+            value: 'frontend@classic'
+        };
+
+        this.theme = {
+            label: 'Theme',
+            description: 'Select the color theme for the application.',
+            input: types.select,
+            options: [
+                { value: 'light', name: 'Classic (Light)' },
+                { value: 'dark', name: 'Ken\'s Daedal Dark' }
+            ],
+            value: 'light'
         };
 
         this.readerEnabled = {
@@ -298,14 +309,14 @@ export default class Settings extends EventTarget {
     /** Resolve async paths that cannot be fetched in the constructor. */
     async initialize(): Promise<void> {
         try {
-            let docs = await window.hakunekoAPI.app.getPath('documents');
+            const docs = await window.hakunekoAPI.app.getPath('documents');
             if (docs) {
                 this.baseDirectory.value = await window.hakunekoAPI.path.join(docs, 'Mangas');
             }
         } catch (_) {
             // documents directory not found — keep default
         }
-        let userData = await window.hakunekoAPI.app.getPath('userData');
+        const userData = await window.hakunekoAPI.app.getPath('userData');
         if (userData) {
             this.bookmarkDirectory.value = userData;
         }
@@ -316,8 +327,8 @@ export default class Settings extends EventTarget {
     }
 
     *[Symbol.iterator](): Generator<SettingDef> {
-        for (let key in this) {
-            let property = (this as unknown as Record<string, unknown>)[key];
+        for (const key in this) {
+            const property = (this as unknown as Record<string, unknown>)[key];
             if (property instanceof Object && (property as SettingDef).input) {
                 yield property as SettingDef;
             }
@@ -329,7 +340,7 @@ export default class Settings extends EventTarget {
             category: 'General',
             settings: [...(this as Iterable<SettingDef>)]
         };
-        for (let connector of Engine.Connectors) {
+        for (const connector of Engine.Connectors) {
             if (connector.config instanceof Object) {
                 yield {
                     category: connector.label,
@@ -345,10 +356,10 @@ export default class Settings extends EventTarget {
 
     async load(): Promise<void> {
         try {
-            let data = await Engine.Storage.loadConfig('settings') as Record<string, unknown>;
+            const data = await Engine.Storage.loadConfig('settings') as Record<string, unknown>;
             // apply general settings
-            for (let key in this) {
-                let setting = (this as unknown as Record<string, SettingDef>)[key];
+            for (const key in this) {
+                const setting = (this as unknown as Record<string, SettingDef>)[key];
                 if (data
                     && data[key] !== undefined
                     && setting
@@ -359,9 +370,9 @@ export default class Settings extends EventTarget {
                 }
             }
             // apply settings to each connector
-            for (let connector of Engine.Connectors) {
+            for (const connector of Engine.Connectors) {
                 const connectors = data && (data.connectors as Record<string, Record<string, unknown>>);
-                for (let key in connector.config) {
+                for (const key in connector.config) {
                     if (data
                         && connectors
                         && connectors[connector.id as string]
@@ -373,6 +384,14 @@ export default class Settings extends EventTarget {
                     }
                 }
             }
+            // Migrate old per-theme frontend values to consolidated frontend@classic + theme setting
+            if (this.frontend.value === 'frontend@classic-light') {
+                this.frontend.value = 'frontend@classic';
+                this.theme.value = 'light';
+            } else if (this.frontend.value === 'frontend@classic-dark') {
+                this.frontend.value = 'frontend@classic';
+                this.theme.value = 'dark';
+            }
             this.dispatchEvent(new CustomEvent(events.loaded, { detail: this }));
         } catch (error) {
             console.error('Failed to load HakuNeko settings!', error);
@@ -381,19 +400,19 @@ export default class Settings extends EventTarget {
 
     async save(): Promise<void> {
         try {
-            let data: Record<string, unknown> = {};
+            const data: Record<string, unknown> = {};
             // gather general settings
-            for (let key in this) {
-                let setting = (this as unknown as Record<string, SettingDef>)[key];
+            for (const key in this) {
+                const setting = (this as unknown as Record<string, SettingDef>)[key];
                 if (setting && setting.input && setting.input !== types.disabled) {
                     data[key] = this._getEncryptedValue(setting.input, setting.value as string);
                 }
             }
             // gather settings from each connector
             data['connectors'] = {};
-            for (let connector of Engine.Connectors) {
+            for (const connector of Engine.Connectors) {
                 (data.connectors as Record<string, Record<string, unknown>>)[connector.id as string] = {};
-                for (let key in connector.config) {
+                for (const key in connector.config) {
                     (data.connectors as Record<string, Record<string, unknown>>)[connector.id as string][key] = this._getEncryptedValue(connector.config[key].input, connector.config[key].value as string);
                 }
             }
@@ -419,7 +438,7 @@ export default class Settings extends EventTarget {
     }
 
     _getValidValue(scope: string, setting: SettingDef, silent?: boolean): unknown {
-        let value = setting.value;
+        const value = setting.value;
         switch (setting.input) {
             case types.numeric:
                 if (setting.min !== undefined && (value as unknown as number) < setting.min) {
@@ -432,7 +451,7 @@ export default class Settings extends EventTarget {
             case types.directory:
                 Engine.Storage.directoryExist(value as string)
                     .catch(error => {
-                        let message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
+                        const message = `WARNING: Cannot access the directory for "${setting.label}" from "${scope}" settings!\n\n${error.message}`;
                         if (silent) {
                             console.warn(message, error);
                         } else {

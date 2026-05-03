@@ -1,0 +1,161 @@
+<!--suppress CssUnresolvedCustomProperty, CssUnknownTarget -->
+<style>
+     #default_menubar {
+        display:none;
+    }
+    /* Font faces needs to be imported on the root level (does not work within shadow DOM scope) */
+    @font-face {
+        font-family: "Font Awesome 5 Brands";
+        font-style: normal;
+        font-weight: normal;
+        font-display: auto;
+        src: url('../../../css/fa-brands-400.woff2?v=5.8.2') format('woff2');
+    }
+    @font-face {
+        font-family: "Font Awesome 5 Free";
+        font-style: normal;
+        font-weight: 400;
+        font-display: auto;
+        src: url('../../../css/fa-regular-400.woff2?v=5.8.2') format('woff2');
+    }
+    @font-face {
+        font-family: "Font Awesome 5 Free";
+        font-style: normal;
+        font-weight: 900;
+        font-display: auto;
+        src: url('../../../css/fa-solid-900.woff2?v=5.8.2') format('woff2');
+    }
+</style>
+
+<dom-module id="theme">
+    <template>
+        <style>
+            /* noinspection CssUnresolvedCustomProperty */
+            :host {
+                user-select: none;
+
+                /*
+                 * All CSS custom properties (--app-*, --menu-*, etc.) are injected on
+                 * :root via applyTheme() in index.html and inherited through shadow DOM.
+                 */
+                font-family: Arial, Helvetica, Sans, sans-serif;
+                font-size: 10pt;
+                color: var(--theme-text-color, #404040);
+            }
+
+            ::-webkit-scrollbar {
+                width: var(--theme-scrollbar-width, 0);
+            }
+
+            ::-webkit-scrollbar-track {
+                background: var(--theme-scrollbar-track, transparent);
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background: var(--theme-scrollbar-thumb, transparent);
+                border-radius: 2em;
+            }
+
+            a {
+                color: var(--theme-link-color, #2080e0);
+                text-decoration: none;
+            }
+
+            input[type="text"], input[type="password"] {
+                width: calc(100% - 0.5em - 0.5em); /* adjust with padding and margin */
+            }
+
+            input[type="text"]:disabled, input[type="password"]:disabled {
+                color: var(--theme-input-disabled-color, #808080);
+                background-color: var(--theme-input-disabled-bg, #f0f0f0);
+                border-bottom: var(--theme-input-disabled-border, 1px solid #a0a0a0);
+            }
+
+            input[type="checkbox"] {
+                color: var(--theme-checkbox-color, #404040);
+                margin: 0.5em;
+            }
+
+            input[type="number"] {
+                width: 4em;
+            }
+
+            select {
+                width: calc(100% - 0em - 0.5em); /* adjust with padding and margin */
+                padding-right: 1.5em !important;
+                background-image: var(--theme-select-bg-image, url('/img/dropdown-classic-light.png'));
+                background-position: right center;
+                background-size: auto 1.5em;
+                background-repeat: no-repeat;
+            }
+
+            input[type="text"], input[type="password"], input[type="number"], select {
+                outline: none; /* disable chromium highlighting of input fields */
+                -webkit-appearance: none;
+                   -moz-appearance: none;
+                        appearance: none;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 10pt;
+                color: var(--theme-input-color, #404040);
+                border: none;
+                border-bottom: var(--theme-input-border, 1px solid #2080e0);
+                background-color: var(--theme-input-bg, rgba(255, 255, 255, 1.0));
+                margin: 0.25em;
+                padding: 0.25em;
+                border-radius: 0.25em;
+                -webkit-box-shadow: inset 0px 0px 0.4em rgba(32,128,224,0.25);
+                   -moz-box-shadow: inset 0px 0px 0.4em rgba(32,128,224,0.25);
+                        box-shadow: inset 0px 0px 0.4em rgba(32,128,224,0.25);
+            }
+
+            /* style for an item (chapter/manga) that cannot be downloaded */
+            .unavailable {
+                color: var(--theme-unavailable-color, #808080);
+            }
+
+            /* style for an item (chapter/manga) that can be added to the download list */
+            .available {
+                color: var(--theme-available-color, #404040);
+            }
+
+            /* style for an item (chapter/manga) that is queued for download to the users device */
+            .queued {
+                color: var(--theme-queued-color, #4080f0);
+            }
+
+            /* style for an item (chapter/manga) that is currently downloaded to the users device */
+            .downloading {
+                color: var(--theme-downloading-color, #4080f0);
+            }
+
+            /* style for an item (chapter/manga) that already exist on the users device */
+            .completed {
+                /*font-weight: bold;*/
+                color: var(--theme-completed-color, #4080f0);
+            }
+
+            .button {
+                color: var(--theme-button-color, #2080e0);
+            }
+
+            .fa-suberlay {
+                position: absolute !important;
+                font-size: 0.66em !important;
+                margin-left: -0.66em !important;
+                margin-top: 1.33em !important;
+            }
+
+            .fas, .far, .fab {
+                color: var(--theme-icon-color, #2080e0);
+            }
+
+            /******************************************************************/
+            /* Font Awesome 5.8.2 classes for re-use in each shadow DOM scope */
+            /******************************************************************/
+            .fa,.fab,.fal,.far,.fas{-moz-osx-font-smoothing:grayscale;-webkit-font-smoothing:antialiased;display:inline-block;font-style:normal;font-variant:normal;text-rendering:auto;line-height:1}
+            /* ... Font Awesome classes continue ... */
+            .fa,.fas{font-weight:900}
+
+        </style>
+    </template>
+</dom-module>
