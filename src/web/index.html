@@ -267,7 +267,7 @@
         };
 
         function applyTheme() {
-            const themeName = Engine.Settings.theme.value;
+            const themeName = Engine.Settings?.theme?.value || 'light';
             const vars = themes[themeName] || themes.light;
             const root = document.documentElement.style;
             for (const [prop, value] of Object.entries(vars)) {
