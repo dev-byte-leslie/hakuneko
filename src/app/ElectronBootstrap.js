@@ -172,6 +172,9 @@ module.exports = class ElectronBootstrap {
         // update userdata path (e.g. for portable version)
         electron.app.setPath('userData', this._configuration.applicationUserDataDirectory);
 
+        // Prevent "GetVSyncParametersIfAvailable() failed" errors on Linux
+        electron.app.commandLine.appendSwitch('disable-gpu-vsync');
+
         /*
          * HACK: Create a dummy menu to support local hotkeys (only accessable when app is focused)
          *       This has to be done, because F12 key cannot be used as global key in windows
@@ -217,7 +220,7 @@ module.exports = class ElectronBootstrap {
                     buffer = Buffer.from(JSON.stringify(await fs.readdir(endpoint)));
                 }
                 if(stats.isFile()) {
-                    mime = endpoint.endsWith('.mjs') ? 'text/javascript' : undefined;
+                    mime = endpoint.endsWith('.mjs') || endpoint.endsWith('.ts') ? 'text/javascript' : undefined;
                     buffer = await fs.readFile(endpoint);
                 }
                 callback({
