@@ -55,7 +55,7 @@ export class HakunekoBookmarks extends LitElement {
                     ? 'Click to remove the selected manga from the bookmark list'
                     : 'Click to add the selected manga to the bookmark list';
             }
-            return `Cannot bookmark mangas from this ${manga.connector.label}!`;
+            return `Cannot bookmark mangas from this ${manga.connector?.label ?? 'source'}!`;
         }
         return 'Please select a manga to use the bookmark feature';
     }

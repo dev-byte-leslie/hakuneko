@@ -52,7 +52,7 @@
             }
         },
         {
-            "files": ["src/web/lib/hakuneko/frontend@classic/*.ts"],
+            "files": ["src/web/lib/hakuneko/frontend@classic/*.ts", "src/web/lib/hakuneko/frontend@classic/__tests__/*.ts"],
             "rules": {
                 // TODO: HAKU-0021 — add typed interfaces for window.Engine.* APIs, then re-enable
                 "@typescript-eslint/no-explicit-any": "off"

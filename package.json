@@ -24,6 +24,7 @@
     "eslint": "^8.57.0",
     "exif-js": "^2.3.0",
     "fs-extra": "11.3.4",
+    "happy-dom": "^20.9.0",
     "hls.js": "^1.6.16",
     "innosetup-compiler": "6.3.1",
     "jest": "30.3.0",
@@ -39,6 +40,7 @@
     "typescript": "^6.0.3",
     "vite": "^6.0.0",
     "vite-plugin-static-copy": "^2.0.0",
+    "vitest": "^4.1.5",
     "win-7zip": "0.1.1"
   },
   "scripts": {
@@ -63,7 +65,8 @@
     "test:smoke:tier2": "cd tools/smoke-test && bun run tier2",
     "test:smoke:tier3": "cd tools/smoke-test && bun run tier3",
     "scan:dead-links": "cd tools/connector-gen && bun run scan",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:lit": "vitest run --config vitest.lit.config.ts"
   },
   "jest": {
     "testPathIgnorePatterns": [

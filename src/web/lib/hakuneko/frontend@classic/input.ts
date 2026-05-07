@@ -65,7 +65,7 @@ export class HakunekoInput extends LitElement {
     render() {
         if (!this.item) return nothing;
 
-        const dataListId = `DataList: ${this.item?.label ?? ''}`;
+        const dataListId = `datalist-${(this.item?.label ?? '').replace(/\W+/g, '-')}`;
 
         return html`
             ${this._isType(inputTypes.disabled) ? html`
