@@ -54,6 +54,10 @@ jobs:
         run: npx jest --runInBand --forceExit --testPathIgnorePatterns="e2e|connector-gen"
         timeout-minutes: 10
 
+      - name: Run Lit component tests
+        shell: bash
+        run: npx vitest run --config vitest.lit.config.ts
+
       - name: Security audit
         run: npm audit --audit-level=high || true
 

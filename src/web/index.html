@@ -278,22 +278,15 @@
         function loadFrontend() {
             let identifier = Engine.Settings.frontend.value;
             console.log('Loading Frontend:', identifier);
-            loadClassicPolymer(identifier);
+            loadClassicFrontend(identifier);
         }
 
-        function loadClassicPolymer(identifier) {
+        function loadClassicFrontend(identifier) {
             // the entry tag for the web application
             let element = document.createElement('hakuneko-app');
             document.body.appendChild(element);
-            // the required webcomponents for polymer
-            let webcomponents = document.createElement('script');
-            webcomponents.src = './lib/webcomponentsjs/webcomponents-loader.js';
-            document.head.appendChild(webcomponents);
-            // the hakuneko application polymer element
-            let frontend = document.createElement('link');
-            frontend.href = `./lib/hakuneko/${identifier}/app.html`;
-            frontend.rel = 'import';
-            document.head.appendChild(frontend);
+            // Dynamic import of the compiled Lit app component (.ts compiled to .mjs by Rollup)
+            import(`./lib/hakuneko/${identifier}/app.mjs`);
         }
 
         function closeNotification() {
@@ -329,6 +322,30 @@
             window.hakunekoAPI.window.close();
         }
     </script>
+    <style>
+        /* Font faces must be at document scope — they don't work inside shadow DOM */
+        @font-face {
+            font-family: "Font Awesome 5 Brands";
+            font-style: normal;
+            font-weight: normal;
+            font-display: auto;
+            src: url('./css/fa-brands-400.woff2?v=5.8.2') format('woff2');
+        }
+        @font-face {
+            font-family: "Font Awesome 5 Free";
+            font-style: normal;
+            font-weight: 400;
+            font-display: auto;
+            src: url('./css/fa-regular-400.woff2?v=5.8.2') format('woff2');
+        }
+        @font-face {
+            font-family: "Font Awesome 5 Free";
+            font-style: normal;
+            font-weight: 900;
+            font-display: auto;
+            src: url('./css/fa-solid-900.woff2?v=5.8.2') format('woff2');
+        }
+    </style>
     <style>
         html, body {
             margin: 0;
