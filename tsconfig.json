@@ -7,11 +7,14 @@
         "module": "ESNext",
         "target": "ESNext",
         "esModuleInterop": true,
-        "skipLibCheck": true
+        "skipLibCheck": true,
+        "experimentalDecorators": true,
+        "useDefineForClassFields": false
     },
     "include": [
         "src/web/mjs/engine/**/*.ts",
-        "src/web/mjs/engine/**/*.d.ts"
+        "src/web/mjs/engine/**/*.d.ts",
+        "src/web/lib/hakuneko/frontend@classic/*.ts"
     ],
     "exclude": ["node_modules", "build"]
 }

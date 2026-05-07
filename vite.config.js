@@ -48,7 +48,12 @@ export default defineConfig({
             // Use the JS entry directly so that index.html is not transformed by
             // Vite (avoids hashing of <link rel="icon"> and <script src="..."> paths).
             // index.html is copied as-is via viteStaticCopy below.
-            input: ['src/web/mjs/HakuNeko.mjs', 'src/web/mjs/globals.mjs'],
+            input: [
+                    'src/web/mjs/HakuNeko.mjs',
+                    'src/web/mjs/globals.mjs',
+                    // Lit frontend — compiled from TypeScript, loaded via dynamic import in index.html
+                    'src/web/lib/hakuneko/frontend@classic/app.ts',
+                ],
             // Required when preserveModules is true — Vite's default of false conflicts
             preserveEntrySignatures: 'strict',
             output: {
@@ -72,8 +77,7 @@ export default defineConfig({
             targets: [
                 // index.html is copied as-is to avoid Vite hashing <link>/<script> paths
                 { src: 'index.html', dest: '.' },
-                // Polymer HTML Import components (loaded at runtime via webcomponents polyfill,
-                // not processed by Rollup)
+                // Static lib assets (icons, etc.) — Lit TS components are compiled by Rollup above
                 { src: 'lib/**/*', dest: 'lib' },
                 // Static assets
                 { src: 'img/**/*', dest: 'img' },

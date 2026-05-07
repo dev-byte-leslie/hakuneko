@@ -30,6 +30,7 @@
     "jest-circus": "30.3.0",
     "jest-junit": "16.0.0",
     "jszip": "3.10.1",
+    "lit": "^3.2.0",
     "oauth-1.0a": "^2.2.6",
     "pdfkit": "^0.18.0",
     "protobufjs": "^8.0.1",
