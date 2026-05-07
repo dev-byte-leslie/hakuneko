@@ -71,7 +71,8 @@
   "jest": {
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "<rootDir>/tools/"
+      "<rootDir>/tools/",
+      "frontend@classic/__tests__/"
     ]
   },
   "dependencies": {
