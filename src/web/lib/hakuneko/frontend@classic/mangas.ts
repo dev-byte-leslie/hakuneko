@@ -149,7 +149,7 @@ export class HakunekoMangas extends LitElement {
     }
 
     private _getMangaClass(manga: any): string {
-        return (!this.selectedManga || this.selectedManga.id !== manga.id) ? '' : 'focus';
+        return !this.selectedManga || this.selectedManga.id !== manga.id ? '' : 'focus';
     }
 
     private _getRefreshClass(): string {
@@ -183,9 +183,9 @@ export class HakunekoMangas extends LitElement {
                         <hakuneko-connectors
                             .selectedConnector=${this.selectedConnector}
                             @selected-connector-changed=${(e: CustomEvent) => {
-                                this.selectedConnector = e.detail;
-                                this.dispatchEvent(new CustomEvent('selected-connector-changed', { detail: e.detail, bubbles: true, composed: true }));
-                            }}
+        this.selectedConnector = e.detail;
+        this.dispatchEvent(new CustomEvent('selected-connector-changed', { detail: e.detail, bubbles: true, composed: true }));
+    }}
                         ></hakuneko-connectors>
                     </td>
                     <td>
@@ -200,7 +200,9 @@ export class HakunekoMangas extends LitElement {
                     </td>
                     <td>
                         <input type="text" .value=${this._mangaPattern}
-                               @input=${(e: InputEvent) => { this._mangaPattern = (e.target as HTMLInputElement).value; this._updateStatusMessage(); }}/>
+                               @input=${(e: InputEvent) => {
+        this._mangaPattern = (e.target as HTMLInputElement).value; this._updateStatusMessage();
+    }}/>
                     </td>
                     <td>
                         <hakuneko-bookmarks .selectedManga=${this.selectedManga}></hakuneko-bookmarks>

@@ -179,7 +179,7 @@ export class HakunekoChapters extends LitElement {
     }
 
     private _getChapterClass(chapter: any): string {
-        return (!this.selectedChapter || this.selectedChapter.id !== chapter.id) ? '' : 'focus';
+        return !this.selectedChapter || this.selectedChapter.id !== chapter.id ? '' : 'focus';
     }
 
     private _getChapterDownloadClass(status: string): string {
@@ -324,7 +324,9 @@ export class HakunekoChapters extends LitElement {
                 <tr>
                     <td><i class="fas fa-fw fa-language" title="Select a language to filter the chapter list"></i></td>
                     <td>
-                        <select .value=${this._searchLanguage} @change=${(e: Event) => { this._searchLanguage = (e.target as HTMLSelectElement).value; this._updateStatusMessage(); }}>
+                        <select .value=${this._searchLanguage} @change=${(e: Event) => {
+    this._searchLanguage = (e.target as HTMLSelectElement).value; this._updateStatusMessage();
+}}>
                             <option value="">*</option>
                             ${this._languageList.map(lang => html`<option value="${lang}">${lang}</option>`)}
                         </select>
@@ -335,7 +337,9 @@ export class HakunekoChapters extends LitElement {
                     <td><i class="fas fa-fw fa-search" title="Enter a pattern (regex support e.g. '/ch 001/i') to filter the chapter list by their titles"></i></td>
                     <td style="width: 100%;">
                         <input type="text" .value=${this._searchPattern}
-                               @input=${(e: InputEvent) => { this._searchPattern = (e.target as HTMLInputElement).value; this._updateStatusMessage(); }}/>
+                               @input=${(e: InputEvent) => {
+        this._searchPattern = (e.target as HTMLInputElement).value; this._updateStatusMessage();
+    }}/>
                     </td>
                     <td></td>
                 </tr>

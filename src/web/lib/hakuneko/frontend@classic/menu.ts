@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { customElement, state, query } from 'lit/decorators.js';
 import { themeStyles } from './theme.js';
 import './input.js';
@@ -78,20 +78,17 @@ export class HakunekoMenu extends LitElement {
     }
 
     private _openWindow(href: string) {
-        const popup = window.open(href, '', 'frame=true,nodeIntegration=no');
+        const popup = window.open(href, '', 'nodeIntegration=no,contextIsolation=yes');
         if (!popup) return;
         const watchdog = setInterval(() => {
             if (popup.closed) {
                 clearInterval(watchdog);
             } else {
-                const script = `{
-                    window.onbeforeunload = evt => undefined;
-                    let warning = document.querySelector('div.unsupported-browser');
-                    if(warning) warning.parentNode.removeChild(warning);
-                    let signup = document.querySelector('div.signup-prompt');
-                    if(signup) signup.parentNode.removeChild(signup);
-                }`;
-                (popup as any).eval(script);
+                try {
+                    popup.onbeforeunload = () => undefined;
+                    popup.document.querySelector('div.unsupported-browser')?.remove();
+                    popup.document.querySelector('div.signup-prompt')?.remove();
+                } catch { /* cross-origin — ignore */ }
             }
         }, 500);
     }

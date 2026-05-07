@@ -49,6 +49,7 @@ export class HakunekoPages extends LitElement {
         .button { cursor: pointer; margin: 0.25em; }
         #fullscreen { width: 100%; height: 100%; background-color: var(--page-video-background-color); }
         #video { width: 100%; height: 100%; object-fit: contain; outline: none !important; }
+        /* noinspection CssInvalidPseudoSelector */
         video::-webkit-media-controls-fullscreen-button { display: none; }
         .ASS-container, .ASS-container svg { width: 100% !important; height: 100% !important; }
         .ASS-stage { z-index: 2147483647; }
@@ -137,8 +138,12 @@ export class HakunekoPages extends LitElement {
                         this._ass = new (window as any).ASS(sub.content, video);
                     } else {
                         fetch(sub.url)
-                            .then(r => { if (r.status !== 200) throw new Error(); return r.text(); })
-                            .then(data => { sub.content = data; this._ass = new (window as any).ASS(sub.content, video); })
+                            .then(r => {
+                                if (r.status !== 200) throw new Error(); return r.text();
+                            })
+                            .then(data => {
+                                sub.content = data; this._ass = new (window as any).ASS(sub.content, video);
+                            })
                             .catch(err => console.warn(err, sub.url));
                     }
                 }
@@ -293,9 +298,13 @@ export class HakunekoPages extends LitElement {
 
         const lastImage = images[images.length - 1];
         if (lastImage.getBoundingClientRect().bottom - window.innerHeight < 1) {
-            if (this._autoNextChapter) { this._requestChapterUp(); return; }
+            if (this._autoNextChapter) {
+                this._requestChapterUp(); return;
+            }
             this._autoNextChapter = true;
-            setTimeout(() => { this._autoNextChapter = false; }, 4000);
+            setTimeout(() => {
+                this._autoNextChapter = false;
+            }, 4000);
             return;
         }
 
@@ -374,8 +383,12 @@ export class HakunekoPages extends LitElement {
                         <i class="fas fa-search-plus fa-2x button" title="Zoom In (➕)" @click=${this._zoomIn}></i>
                         <i class="fas fa-search-minus fa-2x button" title="Zoom Out (➖)" @click=${this._zoomOut}></i>
                         &nbsp;
-                        <i class="fas fa-compress-arrows-alt fa-2x button" title="Default Image Width (*)" @click=${() => { this._imageWidth = 75; }}></i>
-                        <i class="fas fa-expand-arrows-alt fa-2x button" title="Zoom to Fit Window (/)" @click=${() => { this._imageWidth = 100; }}></i>
+                        <i class="fas fa-compress-arrows-alt fa-2x button" title="Default Image Width (*)" @click=${() => {
+        this._imageWidth = 75;
+    }}></i>
+                        <i class="fas fa-expand-arrows-alt fa-2x button" title="Zoom to Fit Window (/)" @click=${() => {
+        this._imageWidth = 100;
+    }}></i>
                         &nbsp;
                         <i>Image Width: ${this._imageWidth}%</i>
                         <i class="fas fa-angle-double-down fa-2x button" title="Magic Scroll Down (SPACEBAR)" @click=${() => this._scrollMagic(window.innerHeight * 0.80)}></i>

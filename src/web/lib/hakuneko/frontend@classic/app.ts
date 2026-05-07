@@ -76,11 +76,11 @@ export class HakunekoApp extends LitElement {
     }
 
     private _getPagePanelStyle(): string {
-        return (!this._readerEnabled || this._chapter === undefined) ? 'display: none;' : '';
+        return !this._readerEnabled || this._chapter === undefined ? 'display: none;' : '';
     }
 
     private _getStartPanelStyle(): string {
-        return (!this._readerEnabled || this._chapter !== undefined) ? 'display: none;' : '';
+        return !this._readerEnabled || this._chapter !== undefined ? 'display: none;' : '';
     }
 
     render() {
@@ -92,15 +92,21 @@ export class HakunekoApp extends LitElement {
                         style="${this._getMangaListStyle()}"
                         .selectedConnector=${this._connector}
                         .selectedManga=${this._manga}
-                        @selected-connector-changed=${(e: CustomEvent) => { this._connector = e.detail; }}
-                        @selected-manga-changed=${(e: CustomEvent) => { this._manga = e.detail; }}
+                        @selected-connector-changed=${(e: CustomEvent) => {
+        this._connector = e.detail;
+    }}
+                        @selected-manga-changed=${(e: CustomEvent) => {
+        this._manga = e.detail;
+    }}
                     ></hakuneko-mangas>
                     <hakuneko-chapters
                         style="${this._getMangaListStyle()}"
                         .selectedConnector=${this._connector}
                         .selectedManga=${this._manga}
                         .selectedChapter=${this._chapter}
-                        @selected-chapter-changed=${(e: CustomEvent) => { this._chapter = e.detail; }}
+                        @selected-chapter-changed=${(e: CustomEvent) => {
+        this._chapter = e.detail;
+    }}
                     ></hakuneko-chapters>
                 </div>
                 <hakuneko-jobs></hakuneko-jobs>
@@ -111,7 +117,9 @@ export class HakunekoApp extends LitElement {
                     style="${this._getPagePanelStyle()}"
                     .selectedChapter=${this._chapter}
                     .selectedMedia=${this._selectedMediaIndex}
-                    @selected-media-changed=${(e: CustomEvent) => { this._selectedMediaIndex = e.detail; }}
+                    @selected-media-changed=${(e: CustomEvent) => {
+        this._selectedMediaIndex = e.detail;
+    }}
                 ></hakuneko-pages>
             </div>
         `;

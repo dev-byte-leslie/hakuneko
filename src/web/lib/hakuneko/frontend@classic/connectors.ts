@@ -1,4 +1,4 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { themeStyles } from './theme.js';
 import Enums from '../../../mjs/engine/Enums.js';
@@ -122,13 +122,15 @@ export class HakunekoConnectors extends LitElement {
 
     private _openLink(evt: Event, link: string | undefined) {
         if (link) {
-            const popup = window.open(link, '', 'frame=true,nodeIntegration=no');
+            const popup = window.open(link, '', 'nodeIntegration=no,contextIsolation=yes');
             if (popup) {
                 const watchdog = setInterval(() => {
                     if (popup.closed) {
                         clearInterval(watchdog);
                     } else {
-                        (popup as any).eval(`window.onbeforeunload = evt => undefined;`);
+                        try {
+                            popup.onbeforeunload = () => undefined;
+                        } catch { /* cross-origin */ }
                     }
                 }, 500);
             }
@@ -184,7 +186,9 @@ export class HakunekoConnectors extends LitElement {
     }
 
     private _clearFilters() {
-        this._tags.forEach(tag => { tag.selected = false; });
+        this._tags.forEach(tag => {
+            tag.selected = false;
+        });
         this._connectorList = (window as any).Engine.Connectors;
         this._mangaPattern = '';
         this._connectorPattern = '';
@@ -223,7 +227,9 @@ export class HakunekoConnectors extends LitElement {
                         </div>
                         <input id="connectorPattern" class="pattern" type="text"
                                .value=${this._connectorPattern}
-                               @input=${(e: InputEvent) => { this._connectorPattern = (e.target as HTMLInputElement).value; }}
+                               @input=${(e: InputEvent) => {
+        this._connectorPattern = (e.target as HTMLInputElement).value;
+    }}
                                title="Show only websites with a name that matches the entered pattern (case-insensitive)"/>
                         <div class="separator">
                             <i class="fas fa-book"></i>
@@ -231,7 +237,9 @@ export class HakunekoConnectors extends LitElement {
                         </div>
                         <input id="mangaPattern" class="pattern" type="text"
                                .value=${this._mangaPattern}
-                               @input=${(e: InputEvent) => { this._mangaPattern = (e.target as HTMLInputElement).value; }}
+                               @input=${(e: InputEvent) => {
+        this._mangaPattern = (e.target as HTMLInputElement).value;
+    }}
                                @keyup=${this._filterConnectorsByManga}
                                title="Show only websites with a manga that matches the entered pattern (case-insensitive)&#10;Searches only in local synchronized manga lists&#10;Press ENTER to perform the search"/>
                         <div class="separator">

@@ -38,6 +38,7 @@ export class HakunekoJobs extends LitElement {
     disconnectedCallback() {
         super.disconnectedCallback();
         (window as any).Engine.DownloadManager.removeEventListener('updated', this._onDownloadStatusUpdated);
+        (window as any).window.hakunekoAPI.ipc.off('hakuneko:ipc:close', this._onClose);
     }
 
     private _toggleJobList() {
