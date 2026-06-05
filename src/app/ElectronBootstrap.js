@@ -633,6 +633,11 @@ module.exports = class ElectronBootstrap {
                 const rh = details.responseHeaders;
                 let uri = new URL(details.url);
 
+                // HAKU-0037: Satisfy CORS policy for renderer fetches — webSecurity:true (HAKU-0004) enforces CORS
+                rh['Access-Control-Allow-Origin'] = ['*'];
+                rh['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS, PUT, DELETE, HEAD'];
+                rh['Access-Control-Allow-Headers'] = ['*'];
+
                 // X-Redirect → Location (some streaming sites use non-standard redirect header)
                 let redirect = rh['X-Redirect'] || rh['x-redirect'];
                 if (redirect) rh['Location'] = redirect;
