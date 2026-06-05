@@ -1,5 +1,5 @@
 import InvalidConnector from './InvalidConnector.mjs';
-import Manga from '../../engine/Manga';
+import Manga from '../../engine/Manga.mjs';
 
 /**
  * System

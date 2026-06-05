@@ -215,3 +215,34 @@ describe('ElectronBootstrap — shell:openPath handler', () => {
         expect(shell.openPath).toHaveBeenCalled();
     });
 });
+
+// HAKU-0037: CORS headers injected in onHeadersReceived so renderer fetches pass
+// CORS under webSecurity:true. Implemented/tested on the HAKU-0047 branch.
+describe('ElectronBootstrap._setupHeadersReceived — CORS headers', () => {
+    const electron = require('electron');
+    let bootstrap;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        bootstrap = new ElectronBootstrap(makeConfiguration(), makeLogger());
+        bootstrap._setupHeadersReceived();
+    });
+
+    function invokeHandler(details) {
+        const cb = electron.session.defaultSession.webRequest.onHeadersReceived.mock.calls[0][1];
+        let result;
+        cb(details, (r) => {
+            result = r;
+        });
+        return result;
+    }
+
+    it('injects Access-Control-Allow-* headers on responses', () => {
+        const result = invokeHandler({ url: 'https://api.example.com/catalog', responseHeaders: {} });
+        const rh = result.responseHeaders;
+        expect(rh['Access-Control-Allow-Origin']).toEqual(['*']);
+        expect(rh['Access-Control-Allow-Methods']).toEqual(['GET, POST, OPTIONS, PUT, DELETE, HEAD']);
+        expect(rh['Access-Control-Allow-Headers']).toEqual(['*']);
+        expect(result.cancel).toBe(false);
+    });
+});

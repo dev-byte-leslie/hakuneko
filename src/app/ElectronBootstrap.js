@@ -220,7 +220,9 @@ module.exports = class ElectronBootstrap {
                     buffer = Buffer.from(JSON.stringify(await fs.readdir(endpoint)));
                 }
                 if(stats.isFile()) {
-                    mime = endpoint.endsWith('.mjs') || endpoint.endsWith('.ts') ? 'text/javascript' : undefined;
+                    mime = endpoint.endsWith('.mjs') || endpoint.endsWith('.ts') ? 'text/javascript'
+                        : endpoint.endsWith('.wasm') ? 'application/wasm' // enable WebAssembly streaming compile
+                            : undefined;
                     buffer = await fs.readFile(endpoint);
                 }
                 callback({
@@ -228,7 +230,9 @@ module.exports = class ElectronBootstrap {
                     data: buffer
                 });
             } catch(error) {
-                callback(error);
+                // A bare numeric net error code must be wrapped as { error } — passing the raw
+                // number makes Electron report net::ERR_NOT_IMPLEMENTED instead of the real code.
+                callback(typeof error === 'number' ? { error } : error);
             }
         });
     }

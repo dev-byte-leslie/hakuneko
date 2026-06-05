@@ -49,11 +49,11 @@ export default defineConfig({
             // Vite (avoids hashing of <link rel="icon"> and <script src="..."> paths).
             // index.html is copied as-is via viteStaticCopy below.
             input: [
-                    'src/web/mjs/HakuNeko.mjs',
-                    'src/web/mjs/globals.mjs',
-                    // Lit frontend — compiled from TypeScript, loaded via dynamic import in index.html
-                    'src/web/lib/hakuneko/frontend@classic/app.ts',
-                ],
+                'src/web/mjs/HakuNeko.mjs',
+                'src/web/mjs/globals.mjs',
+                // Lit frontend — compiled from TypeScript, loaded via dynamic import in index.html
+                'src/web/lib/hakuneko/frontend@classic/app.ts',
+            ],
             // Required when preserveModules is true — Vite's default of false conflicts
             preserveEntrySignatures: 'strict',
             output: {
@@ -82,13 +82,19 @@ export default defineConfig({
                 // Static assets
                 { src: 'img/**/*', dest: 'img' },
                 { src: 'css/**/*', dest: 'css' },
-                // Connector modules — 1,334 .mjs files loaded at runtime via
-                // dynamic import() from hakuneko://cache/mjs/connectors/ listings.
-                // These are NOT in the static module graph so Rollup won't include them.
-                { src: 'mjs/connectors/**/*', dest: 'mjs/connectors' },
+                // Connector modules — .mjs files loaded at runtime via dynamic import()
+                // from hakuneko://cache/mjs/connectors/ listings. NOT in the static module
+                // graph so Rollup won't include them. Copy the directory (not a `**/*` glob)
+                // to preserve the system/ + templates/ subdirs — the glob flattens nested
+                // files to the top level, polluting the listing with broken duplicates.
+                { src: 'mjs/connectors', dest: 'mjs' },
                 // Video stream extractors — imported by anime connectors
                 // (e.g. import FileMoon from '../videostreams/FileMoon.mjs')
-                { src: 'mjs/videostreams/**/*', dest: 'mjs/videostreams' },
+                { src: 'mjs/videostreams', dest: 'mjs' },
+                // sql.js wasm: Rollup bundles only the .mjs wrapper; the .wasm is fetched at
+                // runtime via locateFile (invisible to the module graph). Copy it next to the
+                // bundled mjs so initSqlJs() resolves it. (HAKU-0047)
+                { src: '../../node_modules/sql.js/dist/sql-wasm-browser.wasm', dest: 'node_modules/sql.js/dist' },
             ],
         }),
     ],
