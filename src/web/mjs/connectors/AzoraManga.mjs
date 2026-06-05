@@ -1,4 +1,4 @@
-import AzoraWorld from './AzoraWorld.mjs';
+import AzoraWorld from './azoraworld.mjs';
 
 export default class AzoraManga extends AzoraWorld {
 

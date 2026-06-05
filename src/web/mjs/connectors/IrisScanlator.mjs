@@ -1,4 +1,4 @@
-import WordPressMangaStream from './templates/WordPressMangaStream.mjs';
+import WordPressMangaStream from './templates/WordPressMangastream.mjs';
 
 export default class IrisScanlator extends WordPressMangaStream {
 
