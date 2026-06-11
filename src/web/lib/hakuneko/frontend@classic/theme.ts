@@ -1,11 +1,24 @@
-import { css } from 'lit';
+import { css, unsafeCSS } from 'lit';
+// Font Awesome utility classes + glyph map, injected into every component's
+// shadow root. Shadow DOM does not inherit document-scope utility classes, so
+// the FA `.fa-*` content rules must be re-declared in each scope or icons
+// render blank. Imported as a string (?inline) to keep the minified `\fXXX`
+// glyph escapes as real CSS rather than JS-string double-escapes.
+import faStyles from './fontawesome.css?inline';
 
 /**
  * Shared theme styles applied to all HakuNeko components via shadow DOM.
  * CSS custom properties (--theme-*, --app-*, etc.) are injected on :root
  * via applyTheme() in index.html and inherited through shadow DOM boundaries.
+ *
+ * Exported as an array so the Font Awesome stylesheet is bundled alongside the
+ * theme rules. Lit flattens nested style arrays, so consumers that spread
+ * `themeStyles` into `static styles = [themeStyles, css`…`]` need no change.
  */
-export const themeStyles = css`
+export const themeStyles = [
+    // noinspection CssUnresolvedCustomProperty — --theme-* vars are injected at runtime
+    // on :root by applyTheme() in index.html, so the IDE cannot statically resolve them.
+    css`
     :host {
         user-select: none;
         font-family: Arial, Helvetica, Sans, sans-serif;
@@ -66,4 +79,6 @@ export const themeStyles = css`
         padding-right: 1.5em;
         width: 100%;
     }
-`;
+`,
+    unsafeCSS(faStyles),
+];
