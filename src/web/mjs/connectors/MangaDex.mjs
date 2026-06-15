@@ -69,7 +69,10 @@ export default class MangaDex extends Connector {
     }
 
     async _getMangas() {
-        return (await this.fetchJSON('https://websites.hakuneko.download/mangadex.json')).map(manga => {
+        // HAKU: fetch the static manga-list as a plain Request (no connector requestOptions).
+        // Passing a string makes fetchJSON attach this.requestOptions, whose custom x-referer /
+        // x-sec-ch-ua headers force a CORS preflight that the CDN answers with 405 (Failed to fetch).
+        return (await this.fetchJSON(new Request('https://websites.hakuneko.download/mangadex.json'))).map(manga => {
             return {
                 id: manga.id,
                 title: manga.title,

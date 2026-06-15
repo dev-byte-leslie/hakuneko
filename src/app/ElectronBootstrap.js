@@ -642,6 +642,15 @@ module.exports = class ElectronBootstrap {
                 rh['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS, PUT, DELETE, HEAD'];
                 rh['Access-Control-Allow-Headers'] = ['*'];
 
+                // HAKU-0050: CORS preflight (OPTIONS) responses must carry a 2xx status or the renderer
+                // rejects the subsequent request. Connector custom headers (e.g. MangaDex x-referer /
+                // x-sec-ch-ua) force a preflight, and many upstream APIs answer OPTIONS with 404/405.
+                // Normalize preflight responses to 200 OK so the injected ACAO headers above can apply.
+                let statusLine = details.statusLine;
+                if (details.method === 'OPTIONS') {
+                    statusLine = 'HTTP/1.1 200 OK';
+                }
+
                 // X-Redirect → Location (some streaming sites use non-standard redirect header)
                 let redirect = rh['X-Redirect'] || rh['x-redirect'];
                 if (redirect) rh['Location'] = redirect;
@@ -666,7 +675,7 @@ module.exports = class ElectronBootstrap {
                     _applyCrossSiteCookies(rh);
                 }
 
-                callback({ cancel: false, responseHeaders: rh });
+                callback({ cancel: false, responseHeaders: rh, statusLine });
             } catch(error) {
                 this._logger.warn(error);
                 callback({ cancel: false, responseHeaders: details.responseHeaders });

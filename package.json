@@ -14,6 +14,7 @@
     "@hakuneko/ffmpeg-binaries": "4.2.1-1",
     "@hakuneko/imagemagick-binaries": "7.0.8-58-3",
     "@hakuneko/kindlegen-binaries": "2.9.0-3",
+    "@lit-labs/virtualizer": "^2.1.1",
     "@logtrine/logtrine": "1.1.2",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",
@@ -44,7 +45,7 @@
     "win-7zip": "0.1.1"
   },
   "scripts": {
-    "postinstall": "cd src/app && npm install --no-optional",
+    "postinstall": "cd src/app && npm install --no-optional --legacy-peer-deps",
     "start": "npm run start:dev",
     "start:dev": "npm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web --disable-http-cache --disable-gpu-vsync",
     "start:build": "npm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web",

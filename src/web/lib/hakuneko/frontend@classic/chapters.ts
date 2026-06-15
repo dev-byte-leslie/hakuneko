@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import '@lit-labs/virtualizer';
 import { themeStyles } from './theme.js';
 import Enums from '../../../mjs/engine/Enums.js';
 import './status.js';
@@ -17,11 +18,16 @@ export class HakunekoChapters extends LitElement {
         .header { flex: 0; font-weight: bold; font-size: 1.25em; padding: 0.25em; }
         .filter { flex: 0; width: 100%; }
         .list {
-            flex: 1; margin-top: 0.5em; margin-bottom: 0.5em;
+            /* min-height: 0 lets this flex item shrink below content height so overflow-y
+               actually scrolls (and gives lit-virtualizer a bounded viewport) — without it
+               the virtualized list overflows :host and can't be scrolled. */
+            flex: 1; min-height: 0; margin-top: 0.5em; margin-bottom: 0.5em;
             border: var(--chapter-list-border);
             background-color: var(--chapter-list-background-color);
-            overflow-y: scroll; white-space: nowrap; list-style-type: none; padding: 0.25em;
+            overflow-y: auto; white-space: nowrap; list-style-type: none; padding: 0.25em;
         }
+        /* Orphaned-chaptermark row pinned above the virtualized list. */
+        .markerRow { flex: 0; margin-bottom: 0; }
         .list li { overflow-x: hidden; text-overflow: ellipsis; }
         .list li:hover { background-color: var(--chapter-list-highlighted); }
         .title { user-select: none; cursor: default; }
@@ -304,8 +310,39 @@ export class HakunekoChapters extends LitElement {
         if (index < list.length - 1) this._setSelectedChapter(list[index + 1]);
     };
 
+    // Threshold below which we skip virtualization — small lists render fine as
+    // plain DOM and avoid virtualizer layout/edge cases (and keep tests simple).
+    private static readonly _virtualizeThreshold = 100;
+
+    private _renderChapter = (item: any) => html`
+        <li class="${this._getChapterClass(item)}">
+            <i class="fas fa-fw button ${this._getChapterDownloadClass(item.status)}"
+               @click=${() => this._onProcessChapterClick(item)}
+               title="${this._getChapterDownloadTooltip(item.status)}"></i>
+            <i class="far fa-fw fa-image button" style="${this._getPagePreviewStyle()}"
+               @click=${() => this._onSelectChapterClick(item)}
+               title="Show preview of chapter's pages"></i>
+            <i class="fa-fw fa-bookmark button ${this._getChapterMarkClass(item)}"
+               @click=${() => this._onMarkChapterClick(item)}
+               title="${this._getChapterMarkTooltip(item)}"></i>
+            <span class="title ${item.status}"
+                  title="${item.title}&#10;Doubleclick to open the folder with your file manager"
+                  @dblclick=${() => this._onShowFileManagerClick(item)}>${item.title}</span>
+        </li>
+    `;
+
+    private _renderChaptermarkRow = () => html`
+        <li>
+            <i class="fas fa-fw"></i>
+            <i class="fas fa-fw"></i>
+            <i class="fas fa-fw fa-bookmark button markerRemoved" title="Click to remove the marked chapter" @click=${this._onUnmarkChapterClick}></i>
+            <span class="title markerRemoved" title="The chapter has been marked as &quot;recently read&quot; but is no longer available&#10;ID: ${this._markedChapter?.chapterID}">${this._markedChapter?.chapterTitle}</span>
+        </li>
+    `;
+
     render() {
         const visible = this._getVisibleChapters();
+        const showChaptermark = this._existChaptermarkForChapters();
         return html`
             <div class="header separator">
                 <table border="0" cellpadding="0" cellspacing="0" width="100%">
@@ -344,32 +381,15 @@ export class HakunekoChapters extends LitElement {
                     <td></td>
                 </tr>
             </table>
-            <ul class="list">
-                ${this._existChaptermarkForChapters() ? html`
-                    <li>
-                        <i class="fas fa-fw"></i>
-                        <i class="fas fa-fw"></i>
-                        <i class="fas fa-fw fa-bookmark button markerRemoved" title="Click to remove the marked chapter" @click=${this._onUnmarkChapterClick}></i>
-                        <span class="title markerRemoved" title="The chapter has been marked as &quot;recently read&quot; but is no longer available&#10;ID: ${this._markedChapter?.chapterID}">${this._markedChapter?.chapterTitle}</span>
-                    </li>
-                ` : nothing}
-                ${visible.map(item => html`
-                    <li class="${this._getChapterClass(item)}">
-                        <i class="fas fa-fw button ${this._getChapterDownloadClass(item.status)}"
-                           @click=${() => this._onProcessChapterClick(item)}
-                           title="${this._getChapterDownloadTooltip(item.status)}"></i>
-                        <i class="far fa-fw fa-image button" style="${this._getPagePreviewStyle()}"
-                           @click=${() => this._onSelectChapterClick(item)}
-                           title="Show preview of chapter's pages"></i>
-                        <i class="fa-fw fa-bookmark button ${this._getChapterMarkClass(item)}"
-                           @click=${() => this._onMarkChapterClick(item)}
-                           title="${this._getChapterMarkTooltip(item)}"></i>
-                        <span class="title ${item.status}"
-                              title="${item.title}&#10;Doubleclick to open the folder with your file manager"
-                              @dblclick=${() => this._onShowFileManagerClick(item)}>${item.title}</span>
-                    </li>
-                `)}
-            </ul>
+            ${visible.length < HakunekoChapters._virtualizeThreshold ? html`
+                <ul class="list">
+                    ${showChaptermark ? this._renderChaptermarkRow() : nothing}
+                    ${visible.map(this._renderChapter)}
+                </ul>
+            ` : html`
+                ${showChaptermark ? html`<ul class="list markerRow">${this._renderChaptermarkRow()}</ul>` : nothing}
+                <lit-virtualizer scroller class="list" .items=${visible} .renderItem=${this._renderChapter}></lit-virtualizer>
+            `}
             <div class="footer">
                 <hakuneko-status .message=${this._statusMessage}></hakuneko-status>
             </div>
