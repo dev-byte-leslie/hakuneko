@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
+import '@lit-labs/virtualizer';
 import { themeStyles } from './theme.js';
 import Enums from '../../../mjs/engine/Enums.js';
 
@@ -211,6 +212,37 @@ export class HakunekoConnectors extends LitElement {
         return links?.donation ? 'active' : 'disabled';
     }
 
+    // Threshold below which we skip virtualization — small lists render fine as
+    // plain DOM and avoid virtualizer layout/edge cases (and keep tests simple).
+    private static readonly _virtualizeThreshold = 100;
+
+    private _renderConnectorCard = (item: any) => html`
+        <div class="card ${this._getConnectorClass(item)}"
+             title="Click to show mangas from this website&#10;&#10;Label: ${item.label}&#10;ID: ${item.id}&#10;URL: ${item.url}"
+             @click=${() => this._selectConnector(item)}>
+            <img class="icon" src="${item.icon}" onerror="this.src='/img/connectors/default';" />
+            <div class="description">
+                <div class="heading">
+                    <div class="title">${item.label}</div>
+                    <div class="control">
+                        <i class="fas fa-sign-in-alt link ${this._getLoginClass(item.links)}"
+                           title="Click to open the login page"
+                           @click=${(e: Event) => this._openLogin(e, item)}></i>
+                        <i class="fas fa-coffee link ${this._getDonationClass(item.links)}"
+                           title="Click to open the donation page"
+                           @click=${(e: Event) => this._openDonation(e, item)}></i>
+                        <i class="fas fa-external-link-square-alt link active"
+                           title="Click to open the website in a new window"
+                           @click=${(e: Event) => this._openWebsite(e, item)}></i>
+                    </div>
+                </div>
+                <div>
+                    ${(item.tags ?? []).map((tag: string) => html`<span class="tag">${tag}</span>`)}
+                </div>
+            </div>
+        </div>
+    `;
+
     render() {
         const visibleConnectors = this._connectorList.filter(c => this._filterConnectors(c));
         return html`
@@ -257,34 +289,13 @@ export class HakunekoConnectors extends LitElement {
                             <i class="fas fa-times button clear" title="Reset all filters" @click=${this._clearFilters}></i>
                             <label>Connectors</label>
                         </div>
-                        <div class="scroll">
-                            ${visibleConnectors.map(item => html`
-                                <div class="card ${this._getConnectorClass(item)}"
-                                     title="Click to show mangas from this website&#10;&#10;Label: ${item.label}&#10;ID: ${item.id}&#10;URL: ${item.url}"
-                                     @click=${() => this._selectConnector(item)}>
-                                    <img class="icon" src="${item.icon}" onerror="this.src='/img/connectors/default';" />
-                                    <div class="description">
-                                        <div class="heading">
-                                            <div class="title">${item.label}</div>
-                                            <div class="control">
-                                                <i class="fas fa-sign-in-alt link ${this._getLoginClass(item.links)}"
-                                                   title="Click to open the login page"
-                                                   @click=${(e: Event) => this._openLogin(e, item)}></i>
-                                                <i class="fas fa-coffee link ${this._getDonationClass(item.links)}"
-                                                   title="Click to open the donation page"
-                                                   @click=${(e: Event) => this._openDonation(e, item)}></i>
-                                                <i class="fas fa-external-link-square-alt link active"
-                                                   title="Click to open the website in a new window"
-                                                   @click=${(e: Event) => this._openWebsite(e, item)}></i>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            ${(item.tags ?? []).map((tag: string) => html`<span class="tag">${tag}</span>`)}
-                                        </div>
-                                    </div>
-                                </div>
-                            `)}
-                        </div>
+                        ${visibleConnectors.length < HakunekoConnectors._virtualizeThreshold ? html`
+                            <div class="scroll">
+                                ${visibleConnectors.map(this._renderConnectorCard)}
+                            </div>
+                        ` : html`
+                            <lit-virtualizer class="scroll" .items=${visibleConnectors} .renderItem=${this._renderConnectorCard}></lit-virtualizer>
+                        `}
                     </div>
                 </div>
             </div>

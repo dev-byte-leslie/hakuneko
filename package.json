@@ -14,6 +14,7 @@
     "@hakuneko/ffmpeg-binaries": "4.2.1-1",
     "@hakuneko/imagemagick-binaries": "7.0.8-58-3",
     "@hakuneko/kindlegen-binaries": "2.9.0-3",
+    "@lit-labs/virtualizer": "^2.1.1",
     "@logtrine/logtrine": "1.1.2",
     "@typescript-eslint/eslint-plugin": "^7",
     "@typescript-eslint/parser": "^7",

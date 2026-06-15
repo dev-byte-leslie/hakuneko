@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import '@lit-labs/virtualizer';
 import { themeStyles } from './theme.js';
 import Enums from '../../../mjs/engine/Enums.js';
 import './connectors.js';
@@ -22,10 +23,13 @@ export class HakunekoMangas extends LitElement {
             border: var(--manga-list-notification-border);
         }
         .list {
-            flex: 1; margin-top: 0.5em; margin-bottom: 0.5em;
+            /* min-height: 0 lets this flex item shrink below content height so overflow-y
+               actually scrolls (and gives lit-virtualizer a bounded viewport) — without it
+               the virtualized list overflows :host and can't be scrolled. */
+            flex: 1; min-height: 0; margin-top: 0.5em; margin-bottom: 0.5em;
             border: var(--manga-list-border);
             background-color: var(--manga-list-background-color);
-            overflow-y: scroll; white-space: nowrap; list-style-type: none; padding: 0.25em;
+            overflow-y: auto; white-space: nowrap; list-style-type: none; padding: 0.25em;
         }
         .manga { overflow-x: hidden; text-overflow: ellipsis; cursor: pointer; }
         .manga:hover { background-color: var(--manga-list-highlighted); }
@@ -160,6 +164,16 @@ export class HakunekoMangas extends LitElement {
         return !!(this.selectedConnector && this.selectedConnector.id !== this._bookmarkConnectorID && this._mangaList.length < 1);
     }
 
+    // Threshold below which we skip virtualization — small lists render fine as
+    // plain DOM and avoid virtualizer layout/edge cases (and keep tests simple).
+    private static readonly _virtualizeThreshold = 100;
+
+    private _renderManga = (item: any) => html`
+        <li class="manga ${item.status} ${this._getMangaClass(item)}"
+            title="${item.title}\n${item.connector.label}"
+            @click=${() => this._onMangaClicked(item)}>${item.title}</li>
+    `;
+
     render() {
         const filtered = this._getFilteredMangas();
         return html`
@@ -209,30 +223,30 @@ export class HakunekoMangas extends LitElement {
                     </td>
                 </tr>
             </table>
-            <ul class="list">
-                ${this._existMangasForValidConnector() ? html`
-                    <li class="notification">
-                        Manga list is loading or empty<br>
-                        Click &nbsp;<i class="fas fa-sync ${this._getRefreshClass()} refresh"
-                                       @click=${this._onUpdateMangaListClick}
-                                       title="Synchronize local manga list with online list from <${this.selectedConnector?.label ?? ''}>"></i>&nbsp;
-                        button to update list<br/>
-                        <br/>
-                        <i class="fas fa-info-circle"></i> Some connectors are slow<br/>
-                        and may take more than 10mins<br/>
-                        If the icon is still spinning,<br/>
-                        it's still working<br/>
-                        <br/>
-                        To check the activity press F12<br/>
-                        and go to the network tab
-                    </li>
-                ` : nothing}
-                ${filtered.map(item => html`
-                    <li class="manga ${item.status} ${this._getMangaClass(item)}"
-                        title="${item.title}\n${item.connector.label}"
-                        @click=${() => this._onMangaClicked(item)}>${item.title}</li>
-                `)}
-            </ul>
+            ${filtered.length < HakunekoMangas._virtualizeThreshold ? html`
+                <ul class="list">
+                    ${this._existMangasForValidConnector() ? html`
+                        <li class="notification">
+                            Manga list is loading or empty<br>
+                            Click &nbsp;<i class="fas fa-sync ${this._getRefreshClass()} refresh"
+                                           @click=${this._onUpdateMangaListClick}
+                                           title="Synchronize local manga list with online list from <${this.selectedConnector?.label ?? ''}>"></i>&nbsp;
+                            button to update list<br/>
+                            <br/>
+                            <i class="fas fa-info-circle"></i> Some connectors are slow<br/>
+                            and may take more than 10mins<br/>
+                            If the icon is still spinning,<br/>
+                            it's still working<br/>
+                            <br/>
+                            To check the activity press F12<br/>
+                            and go to the network tab
+                        </li>
+                    ` : nothing}
+                    ${filtered.map(this._renderManga)}
+                </ul>
+            ` : html`
+                <lit-virtualizer scroller class="list" .items=${filtered} .renderItem=${this._renderManga}></lit-virtualizer>
+            `}
             <div class="footer">
                 <hakuneko-status .message=${this._statusMessage}></hakuneko-status>
             </div>
