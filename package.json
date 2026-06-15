@@ -45,7 +45,7 @@
     "win-7zip": "0.1.1"
   },
   "scripts": {
-    "postinstall": "cd src/app && npm install --no-optional",
+    "postinstall": "cd src/app && npm install --no-optional --legacy-peer-deps",
     "start": "npm run start:dev",
     "start:dev": "npm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web --disable-http-cache --disable-gpu-vsync",
     "start:build": "npm run build:web && electron . --update-url=DISABLED --cache-directory=./build/web",
