@@ -1,10 +1,10 @@
 export default {
     branch: {
-        label: 'HAKU-0013',
-        link: 'https://github.com/manga-download/hakuneko/commits/HAKU-0013',
+        label: 'HAKU-0052',
+        link: 'https://github.com/manga-download/hakuneko/commits/HAKU-0052',
     },
     revision: {
-        label: '435668',
-        link: 'https://github.com/manga-download/hakuneko/commits/4356689304da346d91211682cf7fa3a174e5f2a6',
+        label: '0e31de',
+        link: 'https://github.com/manga-download/hakuneko/commits/0e31de54be7dc48522d491d83a8be0381ec9e1cd',
     }
 };

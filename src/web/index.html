@@ -355,6 +355,24 @@
             overflow-y: hidden;
         }
 
+        /* Column layout so hakuneko-app fills the height left after the fixed
+           #default_menubar bar. Without this the app is height:100% of the body
+           and the menubar pushes its bottom (the jobs panel) below the clipped
+           viewport, hiding the download queue. */
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #default_menubar {
+            flex: 0 0 auto;
+        }
+
+        hakuneko-app {
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
         #notification {
             display: none;
             position: absolute;

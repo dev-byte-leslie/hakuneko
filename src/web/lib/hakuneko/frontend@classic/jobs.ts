@@ -12,6 +12,7 @@ export class HakunekoJobs extends LitElement {
         .bar { display: flex; flex-direction: row; padding: 0.25em; }
         .expander { flex: 0; padding: 0.25em; }
         .status { flex: 1; text-align: right; padding: 0.25em; }
+        .failed { color: var(--job-list-button-failed-color); margin-left: 0.5em; }
         .button { cursor: pointer; }
         .buttonQueued { color: var(--job-list-button-queued-color); }
         .buttonDownloading { color: var(--job-list-button-downloading-color); }
@@ -53,6 +54,10 @@ export class HakunekoJobs extends LitElement {
         return this._popupVisible ? 'fa-window-close' : 'fa-chart-bar';
     }
 
+    private _failedCount(): number {
+        return this._jobList.filter(job => job.status === 'failed').length;
+    }
+
     private _getStatusClass(status: string): string {
         switch (status) {
             case 'queued': return 'fa-clock buttonQueued';
@@ -90,7 +95,10 @@ export class HakunekoJobs extends LitElement {
             if (position > -1 && this._jobList[position].status === 'failed') {
                 newList = newList.filter((_, i) => i !== position);
             }
-            if (job.status === 'queued' || job.status === 'downloading') {
+            // Include 'failed' so a terminal failure still surfaces even if the panel
+            // missed this job's earlier queued/downloading events (remount, list reset,
+            // or download started before subscribe).
+            if (job.status === 'queued' || job.status === 'downloading' || job.status === 'failed') {
                 newList = [...newList, job];
             }
             this._jobList = newList;
@@ -127,7 +135,7 @@ export class HakunekoJobs extends LitElement {
                 <div class="expander">
                     <i class="fas ${this._getButtonClass()} button" title="Toggle download list" @click=${this._toggleJobList}></i>
                 </div>
-                <div class="status">${this._jobList.length} Download(s)</div>
+                <div class="status">${this._jobList.length} Download(s)${this._failedCount() > 0 ? html`<span class="failed">${this._failedCount()} failed</span>` : ''}</div>
             </div>
         `;
     }

@@ -37,6 +37,17 @@ describe('hakuneko-jobs', () => {
         expect(ipc.off).toHaveBeenCalledWith('hakuneko:ipc:close', expect.any(Function));
     });
 
+    it('surfaces a failed job even when its earlier events were never seen', async () => {
+        // Untracked job (panel missed queued/downloading) whose first event is 'failed'
+        const job = { chapter: { id: 'c1' }, status: 'failed', labels: {}, errors: [new Error('boom')], progress: 100, isSame: (o: any) => o.chapter === job.chapter };
+        el._onDownloadStatusUpdated(new CustomEvent('updated', { detail: job }));
+        await el.updateComplete;
+
+        expect(el._jobList).toContain(job);
+        expect(el._failedCount()).toBe(1);
+        expect(el.shadowRoot.querySelector('.failed')?.textContent).toContain('1 failed');
+    });
+
     it('toggle shows/hides job list', async () => {
         // Initially hidden
         expect(el.shadowRoot.querySelector('.hide')).not.toBeNull();
