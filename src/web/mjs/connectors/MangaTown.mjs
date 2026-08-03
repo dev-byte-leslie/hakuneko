@@ -58,17 +58,18 @@ export default class MangaTown extends Connector {
     }
 
     async _getPages(chapter) {
+        // MangaTown embeds every page image directly in the chapter page inside
+        // #viewer (the old div.page_select dropdown is now populated client-side and
+        // is empty in the served HTML, so scraping it yields no pages).
+        // Note: createDOM() rewrites <img> to <source>, so match source.image.
         let request = new Request(new URL(chapter.id, this.url), this.requestOptions);
-        let data = await this.fetchDOM(request, 'div.manga_read_footer div.page_select select option');
-        return data
-            .filter(option => !option.value.endsWith('featured.html'))
-            .map(element => this.createConnectorURI(this.getAbsolutePath(element.value, request.url)));
+        let data = await this.fetchDOM(request, 'div#viewer source.image');
+        return data.map(image => this.createConnectorURI(this.getAbsolutePath(image, request.url)));
     }
 
     async _handleConnectorURI(payload) {
-        const pageData = await this.fetchDOM(new Request(payload, this.requestOptions), 'source#image');
-        const imageURL = this.getAbsolutePath(pageData[0].src, 'https://mangahere.com').replace('hakuneko://', 'https://');
-        const request = new Request(imageURL, this.requestOptions);
+        // payload is the absolute image URL (on the mangahere CDN, which requires a referer)
+        const request = new Request(payload, this.requestOptions);
         request.headers.set('x-referer', 'mangahere.com');
         const response = await fetch(request);
         const imageData = await response.blob();

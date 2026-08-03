@@ -73,8 +73,8 @@ export default class Connector implements IConnector {
      * This method can be overwritten by the connector for a specific implementation of the initialization process
      */
     async _initializeConnector(): Promise<unknown> {
-        let uri = new URL(this.url);
-        let request = new Request(uri.href, this.requestOptions);
+        const uri = new URL(this.url);
+        const request = new Request(uri.href, this.requestOptions);
         return Engine.Request.fetchUI(request, '', 60000, true);// 60sec is default timeout from fetchUI, and we need images=true for DDOS-GUARD
     }
 
@@ -96,7 +96,7 @@ export default class Connector implements IConnector {
      * Find first manga with title that matches the given pattern (case-insensitive).
      */
     findMatchingManga( pattern: string ): Promise<Manga | undefined> {
-        let needle = pattern.toLowerCase();
+        const needle = pattern.toLowerCase();
         return Engine.Storage.loadMangaList( this.id )
             .then( mangas => {
                 const found = mangas.find( manga => manga.title.toLowerCase().includes( needle ) );
@@ -186,8 +186,8 @@ export default class Connector implements IConnector {
      * This method can be overwritten by connector implementations.
      */
     async _getMangaFromURI(uri: URL): Promise<Manga> {
-        let id = uri.pathname + uri.search;
-        let title = 'Manga #' + id.split('').reduce((a, v) => a + a % 31 + v.charCodeAt(0), id.length).toString(16).toUpperCase();
+        const id = uri.pathname + uri.search;
+        const title = 'Manga #' + id.split('').reduce((a, v) => a + a % 31 + v.charCodeAt(0), id.length).toString(16).toUpperCase();
         return new Manga(this, id, title);
     }
 
@@ -271,7 +271,7 @@ export default class Connector implements IConnector {
     }
 
     adLinkDecrypt(element: HTMLAnchorElement): void {
-        let uri = new URL(element.href);
+        const uri = new URL(element.href);
         if(uri.hostname === 'nofil.net' && element.pathname.includes('safeme')) {
             element.href = uri.searchParams.get('url') ?? element.href;
         }
@@ -282,11 +282,11 @@ export default class Connector implements IConnector {
      */
     cfMailDecrypt( element: HTMLElement ): void {
         [...element.querySelectorAll( 'span[data-cfemail]' )].forEach( ( span ) => {
-            let encrypted = span.getAttribute( 'data-cfemail' ); // span.dataset.cfmail
+            const encrypted = span.getAttribute( 'data-cfemail' ); // span.dataset.cfmail
             if( encrypted ) {
                 // decrypt mail
                 let decrypted = '';
-                let key = parseInt('0x' + encrypted.substr(0, 2)) | 0;
+                const key = parseInt('0x' + encrypted.substr(0, 2)) | 0;
                 for ( let i=2; i<encrypted.length; i+=2) {
                     decrypted += '%' + ('0' + (parseInt('0x' + encrypted.substr(i, 2)) ^ key).toString(16)).slice(-2);
                 }
@@ -335,10 +335,10 @@ export default class Connector implements IConnector {
      * or leave the absolute url if the link seems not to been expanded.
      */
     getRelativeLink( element: HTMLElement ): string | undefined {
-        const el = element as any;
+        const el = element as unknown as { href?: string; src?: string };
         if( el.href || el.src ) {
-            let baseURI = new URL( this.url );
-            let refURI = new URL( el.href || el.src );
+            const baseURI = new URL( this.url );
+            const refURI = new URL( (el.href || el.src)! );
 
             // case: element.href => protocol + host expanded to window location (e.g. /sub/page.html => protocol://window/sub/page.html)
             if( refURI.origin === window.location.origin ) {
@@ -406,7 +406,7 @@ export default class Connector implements IConnector {
      *
      */
     getRootRelativeOrAbsoluteLink( reference: URL | string | HTMLElement, base: string ): string {
-        let uri = new URL( this.getAbsolutePath( reference, base ) );
+        const uri = new URL( this.getAbsolutePath( reference, base ) );
         if( uri.hostname === new URL( base ).hostname ) {
             // same domain => return only path
             return uri.pathname + uri.search + uri.hash;
@@ -435,7 +435,7 @@ export default class Connector implements IConnector {
         if( clearIframettributes ) {
             content = content.replace( /<iframe[^<]*?>/g, '<iframe>');
         }
-        let dom = document.createElement( 'html' );
+        const dom = document.createElement( 'html' );
         dom.innerHTML = content;
         return dom;
     }
@@ -510,9 +510,9 @@ export default class Connector implements IConnector {
 
         return this.fetchJSON(graphQLRequest)
             .then(data => {
-                const result = data as any;
+                const result = data as { errors?: { message: string }[]; data?: unknown };
                 if (result.errors) {
-                    throw new Error(this.label + ' errors: ' + result.errors.map((error: any) => error.message).join('\n'));
+                    throw new Error(this.label + ' errors: ' + result.errors.map((error) => error.message).join('\n'));
                 }
                 if (!result.data) {
                     throw new Error(this.label + 'No data available!');
@@ -525,9 +525,9 @@ export default class Connector implements IConnector {
         if(!/\/[imsuy]*g[imsuy]*$/.test('' + regex)) {
             throw new Error('The provided RegExp must contain the global "g" modifier!');
         }
-        let response = await fetch(request);
-        let data = await response.text();
-        let result = [];
+        const response = await fetch(request);
+        const data = await response.text();
+        const result = [];
         let match = undefined;
         // eslint-disable-next-line no-cond-assign
         while(match = regex.exec(data)) {
@@ -567,8 +567,8 @@ export default class Connector implements IConnector {
      */
 
     async fetchPROTO(request: Request, protoTypes: string, rootType: string): Promise<unknown> {
-        let Root = (await protobuf.load(protoTypes)).lookupType(rootType);
-        let response = await fetch(request);
+        const Root = (await protobuf.load(protoTypes)).lookupType(rootType);
+        const response = await fetch(request);
         let data = await response.arrayBuffer();
         data = Root.decode(new Uint8Array(data));
         return Root.toObject(data);
@@ -578,10 +578,10 @@ export default class Connector implements IConnector {
      *
      */
     createConnectorURI( payload: unknown ): string {
-        let data = JSON.stringify( payload );
-        let bytes = CryptoJS.enc.Utf8.parse( data );
-        let encoded = CryptoJS.enc.Base64.stringify( bytes );
-        let uri = new URL( 'connector://' + String(this.id) );
+        const data = JSON.stringify( payload );
+        const bytes = CryptoJS.enc.Utf8.parse( data );
+        const encoded = CryptoJS.enc.Base64.stringify( bytes );
+        const uri = new URL( 'connector://' + String(this.id) );
         uri.searchParams.set( 'payload', encoded );
         return uri.href;
     }
@@ -596,7 +596,7 @@ export default class Connector implements IConnector {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
-            let mangas = await this._getMangas();
+            const mangas = await this._getMangas();
             callback(null, mangas);
         } catch(error) {
             console.error(error, this);
@@ -615,7 +615,7 @@ export default class Connector implements IConnector {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
-            let chapters = await this._getChapters(manga);
+            const chapters = await this._getChapters(manga);
             callback(null, chapters);
         } catch(error) {
             console.error(error, manga);
@@ -635,7 +635,7 @@ export default class Connector implements IConnector {
         // default implementation => forward compatibility to new interface method
         try {
             // TODO: this.initialize()
-            let pages = await this._getPages(chapter);
+            const pages = await this._getPages(chapter);
             callback(null, pages);
         } catch(error) {
             console.error(error, chapter);
@@ -659,7 +659,7 @@ export default class Connector implements IConnector {
      * @param {string} manga.id - Unique identifier of the manga that implies the resource (URI) to get the chapters from
      * @returns {Chapter[]} - A list of chapters
      */
-    // eslint-disable-next-line no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async _getChapters(manga: Manga): Promise<Chapter[]> {
         throw new Error('Not implemented!');
     }
@@ -671,7 +671,7 @@ export default class Connector implements IConnector {
      * @param {string} chapter.id - Unique identifier of the chapter that implies the resource (URI) to get the media from
      * @returns {Promise<(string[]|Object)>} - A list of image links (USVString) or a media type
      */
-    // eslint-disable-next-line no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     async _getPages(chapter: Chapter): Promise<string[] | object> {
         throw new Error('Not implemented!');
     }
@@ -680,10 +680,10 @@ export default class Connector implements IConnector {
      *
      */
     handleConnectorURI( uri: URL ): Promise<MimeTypedBuffer> {
-        let encoded = uri.searchParams.get( 'payload' );
-        let bytes = CryptoJS.enc.Base64.parse( encoded );
-        let data = bytes.toString( CryptoJS.enc.Utf8 );
-        let payload = JSON.parse( data );
+        const encoded = uri.searchParams.get( 'payload' );
+        const bytes = CryptoJS.enc.Base64.parse( encoded );
+        const data = bytes.toString( CryptoJS.enc.Utf8 );
+        const payload = JSON.parse( data );
         return this._handleConnectorURI( payload );
     }
 
@@ -696,10 +696,10 @@ export default class Connector implements IConnector {
          * TODO: only perform requests when from download manager
          * or when from browser for preview and selected chapter matches
          */
-        let request = new Request(payload, this.requestOptions);
-        let response = await fetch(request);
-        let blob = await response.blob();
-        let data = await this._blobToBuffer(blob);
+        const request = new Request(payload, this.requestOptions);
+        const response = await fetch(request);
+        const blob = await response.blob();
+        const data = await this._blobToBuffer(blob);
         this._applyRealMime(data);
         return data;
     }
@@ -710,12 +710,13 @@ export default class Connector implements IConnector {
      */
     async _blobToBuffer(blob: Blob): Promise<MimeTypedBuffer> {
         return new Promise((resolve, reject) => {
-            let reader = new FileReader();
+            const reader = new FileReader();
             reader.onload = event => {
                 resolve({
                     mimeType: blob.type,
-                    // NOTE: Uint8Array() seems slightly better than Buffer.from(), but both are blazing fast
-                    data: Buffer.from(event.target!.result as ArrayBuffer) // new Uint8Array( event.target.result )
+                    // Uint8Array (not Buffer) — Buffer is a Node global and is unavailable in the
+                    // renderer with nodeIntegration disabled. Matches Storage._blobToBytes.
+                    data: new Uint8Array(event.target!.result as ArrayBuffer)
                 });
             };
             reader.onerror = event => {

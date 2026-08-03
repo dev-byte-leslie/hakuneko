@@ -638,6 +638,15 @@ module.exports = class ElectronBootstrap {
                 let uri = new URL(details.url);
 
                 // HAKU-0037: Satisfy CORS policy for renderer fetches — webSecurity:true (HAKU-0004) enforces CORS
+                // Delete every case-variant first: some upstreams (e.g. Cloudflare-fronted zjcdn/mangahere)
+                // already send Access-Control-Allow-* — often duplicated — and just assigning a new-cased
+                // key leaves those in place, yielding multiple values (e.g. "*, *, *") which Chromium rejects
+                // with "MultipleAllowOriginValues". Collapse each to a single value.
+                for (const key of Object.keys(rh)) {
+                    if (/^access-control-allow-(origin|methods|headers)$/i.test(key)) {
+                        delete rh[key];
+                    }
+                }
                 rh['Access-Control-Allow-Origin'] = ['*'];
                 rh['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS, PUT, DELETE, HEAD'];
                 rh['Access-Control-Allow-Headers'] = ['*'];
@@ -698,6 +707,14 @@ module.exports = class ElectronBootstrap {
                     }
                 }
             }
+        });
+
+        // Clipboard (renderer preload is sandboxed and cannot access electron.clipboard directly)
+        ipcMain.handle('hakuneko:clipboard:readText', () => {
+            return electron.clipboard.readText();
+        });
+        ipcMain.handle('hakuneko:clipboard:writeText', (event, text) => {
+            electron.clipboard.writeText(text);
         });
 
         // Dialog
